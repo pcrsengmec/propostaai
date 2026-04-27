@@ -203,9 +203,10 @@ Dados:
 
 A proposta deve ter: cabeçalho com data, apresentação, entendimento da necessidade, escopo detalhado, investimento e formas de pagamento, prazo e cronograma, diferenciais, próximos passos e assinatura. Use linguagem profissional e calorosa.`;
 
+      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
