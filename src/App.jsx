@@ -212,7 +212,7 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
         }),
       });
       const data = await res.json();
-      const text = data.content?.map((b) => b.text || "").join("\n") || "";
+      const text = data.text || "";
       if (!text) throw new Error("vazio");
       usage.increment();
       setProposta(text);
@@ -492,4 +492,4 @@ if (typeof document !== "undefined") {
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
   `;
   document.head.appendChild(s);
-} 
+}
