@@ -228,24 +228,6 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  const exportPDF = () => {
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <html><head><title>Proposta Comercial</title>
-    <style>
-      body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 40px; color: #222; line-height: 1.8; }
-      pre { white-space: pre-wrap; font-size: 14px; }
-      .header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #c8a96e; padding-bottom: 20px; }
-      .logo { font-size: 11px; letter-spacing: 3px; color: #c8a96e; text-transform: uppercase; }
-    </style>
-    </head><body>
-    <div class="header"><div class="logo">PropostaAI</div></div>
-    <pre>${u}</pre>
-    <script>window.onload = function(){ window.print(); }<\/script>
-    </body></html>
-  `);
-  win.document.close();
-};
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
       {/* Topbar */}
@@ -301,6 +283,24 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
             </div>
 
             {error && <div style={{ marginTop: "12px", color: "#e05555", fontSize: "13px" }}>{error}</div>}
+              const exportPDF = () => {
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>Proposta Comercial</title>
+    <style>
+      body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 40px; color: #222; line-height: 1.8; }
+      pre { white-space: pre-wrap; font-size: 14px; }
+      .header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #c8a96e; padding-bottom: 20px; }
+      .logo { font-size: 11px; letter-spacing: 3px; color: #c8a96e; text-transform: uppercase; }
+    </style>
+    </head><body>
+    <div class="header"><div class="logo">PropostaAI</div></div>
+    <pre>${u}</pre>
+    <script>window.onload = function(){ window.print(); }<\/script>
+    </body></html>
+  `);
+  win.document.close();
+};
 
             <button
               onClick={gerar}
