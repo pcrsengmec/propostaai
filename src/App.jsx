@@ -228,7 +228,24 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
+  const exportPDF = () => {
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>Proposta Comercial</title>
+    <style>
+      body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 40px; color: #222; line-height: 1.8; }
+      pre { white-space: pre-wrap; font-size: 14px; }
+      .header { text-align: center; margin-bottom: 40px; border-bottom: 1px solid #c8a96e; padding-bottom: 20px; }
+      .logo { font-size: 11px; letter-spacing: 3px; color: #c8a96e; text-transform: uppercase; }
+    </style>
+    </head><body>
+    <div class="header"><div class="logo">PropostaAI</div></div>
+    <pre>${u}</pre>
+    <script>window.onload = function(){ window.print(); }<\/script>
+    </body></html>
+  `);
+  win.document.close();
+};
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
       {/* Topbar */}
@@ -311,7 +328,9 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
                 <h2 style={{ fontSize: "24px", fontWeight: "normal", color: "#f0e8d8", margin: 0 }}>Sua proposta está pronta</h2>
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px" }}>
+                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px" }}> <button onClick={exportPDF} style={{...M.btnPrimary, padding:"10px 18px", fontSize:"11px", background:"#1a4a1a", marginLeft:"8px"}}>
+  📄 PDF
+</button>
                   {copied ? "✓ Copiado!" : "Copiar"}
                 </button>
                 <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>
