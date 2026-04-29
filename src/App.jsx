@@ -203,13 +203,10 @@ Dados:
 
 A proposta deve ter: cabeçalho com data, apresentação, entendimento da necessidade, escopo detalhado, investimento e formas de pagamento, prazo e cronograma, diferenciais, próximos passos e assinatura. Use linguagem profissional e calorosa.`;
 
-      
       const res = await fetch("/api/gerar-proposta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt,
-        }),
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
       const text = data.text || "";
@@ -228,6 +225,84 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const exportarPDF = () => {
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Proposta Comercial</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: Georgia, serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 60px;
+            color: #1a1a1a;
+            line-height: 1.8;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #c8a96e;
+          }
+          .logo {
+            font-size: 11px;
+            letter-spacing: 4px;
+            color: #c8a96e;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+          }
+          .titulo {
+            font-size: 22px;
+            font-weight: normal;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
+          }
+          .proposta {
+            font-size: 14px;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            color: #222;
+          }
+          .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+          }
+          @media print {
+            body { padding: 40px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">PropostaAI</div>
+          <div class="titulo">Proposta Comercial</div>
+        </div>
+        <div class="proposta">${proposta.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+        <div class="footer">Gerado por PropostaAI · propostaai-lilac.vercel.app</div>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
       {/* Topbar */}
@@ -308,9 +383,12 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
                 <div style={{ fontSize: "11px", letterSpacing: "2px", color: "#c8a96e", textTransform: "uppercase", marginBottom: "4px" }}>✓ Gerada com sucesso</div>
                 <h2 style={{ fontSize: "24px", fontWeight: "normal", color: "#f0e8d8", margin: 0 }}>Sua proposta está pronta</h2>
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px" }}> 
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>
                   {copied ? "✓ Copiado!" : "Copiar"}
+                </button>
+                <button onClick={exportarPDF} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto", background: "#1a5c1a" }}>
+                  📄 Exportar PDF
                 </button>
                 <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>
                   Nova
