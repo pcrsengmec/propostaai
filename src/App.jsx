@@ -9,7 +9,7 @@ const CONFIG = {
   FIREBASE_PROJECT_ID: "propostaai",
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00", // 👈 portal do cliente
-  LIMITE_GRATUITO: 5,
+  LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
 };
 // ============================================================
