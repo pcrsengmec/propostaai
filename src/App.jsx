@@ -8,7 +8,7 @@ const CONFIG = {
   FIREBASE_AUTH_DOMAIN: "propostaai.firebaseapp.com",
   FIREBASE_PROJECT_ID: "propostaai",
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
-  STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00", // 👈 portal do cliente
+  STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
 };
@@ -77,8 +77,28 @@ const fields = [
   { key: "servico", label: "Serviço ou produto", placeholder: "Ex: Desenvolvimento de site institucional", required: true },
   { key: "valor", label: "Valor da proposta", placeholder: "Ex: R$ 5.000,00", required: true },
   { key: "prazo", label: "Prazo de entrega", placeholder: "Ex: 30 dias úteis", required: true },
-  { key: "diferenciais", label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso...", required: false },
+  { key: "diferenciais", label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso, garantia de satisfação...", required: false },
 ];
+
+// ---- Renderizador de Markdown para HTML ----
+function renderProposta(texto) {
+  const html = texto
+    .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #2a2a3a;margin:24px 0"/>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:15px;color:#c8a96e;letter-spacing:2px;text-transform:uppercase;margin:32px 0 10px;font-weight:normal;font-family:Georgia,serif">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;color:#f0e8d8;margin:20px 0 8px;font-weight:bold;font-family:Georgia,serif">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>')
+    .replace(/^✓ (.+)$/gm, '<div style="display:flex;gap:10px;margin:6px 0;color:#d8d0c0;font-family:Georgia,serif"><span style="color:#c8a96e;flex-shrink:0">✓</span><span>$1</span></div>')
+    .replace(/^\| (.+) \|$/gm, (match) => {
+      const cells = match.split('|').filter(c => c.trim() !== '');
+      const isHeader = cells.some(c => c.includes('---'));
+      if (isHeader) return '';
+      const tag = 'td';
+      return '<tr>' + cells.map(c => `<${tag} style="padding:8px 12px;border:1px solid #2a2a3a;color:#d8d0c0;font-size:13px">${c.trim()}</${tag}>`).join('') + '</tr>';
+    })
+    .replace(/(<tr>.*<\/tr>)/gs, '<table style="width:100%;border-collapse:collapse;margin:16px 0">$1</table>')
+    .replace(/\n/g, '<br/>');
+  return { __html: html };
+}
 
 // ================================================================
 //  TELAS
@@ -183,7 +203,7 @@ function TelaApp({ user, usage, onLogout }) {
     setStep("gerando");
     setError("");
     try {
-      const prompt = `Você é um especialista em vendas B2B brasileiro. Gere uma proposta comercial profissional, persuasiva e completa em português do Brasil.
+      const prompt = `Você é um especialista em vendas B2B brasileiro. Gere uma proposta comercial profissional, persuasiva e completa em português do Brasil. Use formatação markdown com ## para seções, ### para subseções e **negrito** para destacar pontos importantes.
 
 Dados:
 - Fornecedor: ${form.seuNome}
@@ -191,9 +211,9 @@ Dados:
 - Serviço: ${form.servico}
 - Valor: ${form.valor}
 - Prazo: ${form.prazo}
-- Diferenciais: ${form.diferenciais || "não informado"}
+- Diferenciais do fornecedor: ${form.diferenciais ? form.diferenciais : "não informado — omita a seção de diferenciais"}
 
-A proposta deve ter: cabeçalho com data, apresentação, entendimento da necessidade, escopo detalhado, investimento e formas de pagamento, prazo e cronograma, diferenciais, próximos passos e assinatura. Use linguagem profissional e calorosa.`;
+A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃO, APRESENTAÇÃO, ENTENDIMENTO DA NECESSIDADE, ESCOPO DETALHADO, INVESTIMENTO E FORMAS DE PAGAMENTO, PRAZO E CRONOGRAMA${form.diferenciais ? ", NOSSOS DIFERENCIAIS" : ""}, PRÓXIMOS PASSOS e ASSINATURA. Use linguagem profissional e calorosa. Separe as seções com ---.`;
 
       const res = await fetch("/api/gerar-proposta", {
         method: "POST",
@@ -255,10 +275,38 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
             color: #1a1a1a;
             letter-spacing: -0.5px;
           }
+          h2 {
+            font-size: 13px;
+            color: #c8a96e;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 32px 0 10px;
+            font-weight: normal;
+          }
+          h3 {
+            font-size: 14px;
+            color: #1a1a1a;
+            margin: 20px 0 8px;
+            font-weight: bold;
+          }
+          hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 24px 0;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+          }
+          td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+          }
           .proposta {
             font-size: 14px;
             line-height: 1.9;
-            white-space: pre-wrap;
             color: #222;
           }
           .footer {
@@ -273,7 +321,6 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
           }
           @media print {
             body { padding: 40px; }
-            .no-print { display: none; }
           }
         </style>
       </head>
@@ -282,13 +329,18 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
           <div class="logo">PropostaAI</div>
           <div class="titulo">Proposta Comercial</div>
         </div>
-        <div class="proposta">${proposta.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
-        <div class="footer">Gerado por PropostaAI · propostaai-lilac.vercel.app</div>
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        <\/script>
+        <div class="proposta">${proposta
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/^---$/gm, '<hr/>')
+          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+          .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br/>')
+        }</div>
+        <div class="footer">Gerado por PropostaAI · fecharproposta.com.br</div>
+        <script>window.onload = function() { window.print(); };<\/script>
       </body>
       </html>
     `);
@@ -311,7 +363,6 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
             </div>
           )}
 
-          {/* ✅ Badge PRO + botão Gerenciar assinatura */}
           {usage.subscribed && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
@@ -348,14 +399,24 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
                   <label style={css.label}>
                     {f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}
                   </label>
-                  <input
-                    value={form[f.key] || ""}
-                    onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    style={css.input}
-                    onFocus={(e) => (e.target.style.borderColor = "#c8a96e")}
-                    onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")}
-                  />
+                  {f.key === "diferenciais" ? (
+                    <textarea
+                      value={form[f.key] || ""}
+                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      rows={3}
+                      style={{ ...css.input, resize: "vertical", minHeight: "80px" }}
+                    />
+                  ) : (
+                    <input
+                      value={form[f.key] || ""}
+                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      style={css.input}
+                      onFocus={(e) => (e.target.style.borderColor = "#c8a96e")}
+                      onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -399,7 +460,11 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
               </div>
             </div>
 
-            <div style={css.propostaBox}>{proposta}</div>
+            {/* Proposta renderizada com markdown */}
+            <div
+              style={css.propostaBox}
+              dangerouslySetInnerHTML={renderProposta(proposta)}
+            />
 
             <div style={css.dica}>
               💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.
@@ -506,7 +571,6 @@ const css = {
     background: "none", border: "none", color: "#555", fontSize: "12px",
     cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif",
   },
-  // ✅ Novo estilo para o botão de gerenciar assinatura
   btnGerenciar: {
     background: "none",
     border: "1px solid #2a2a3a",
@@ -527,7 +591,8 @@ const css = {
   input: {
     width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid #2a2a3a",
     borderRadius: "4px", padding: "13px 15px", color: "#e8e0d0", fontSize: "14px",
-    fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
+    fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box",
+    transition: "border-color 0.2s",
   },
   btnPrimary: {
     width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f",
@@ -553,7 +618,7 @@ const css = {
   },
   propostaBox: {
     background: "rgba(255,255,255,0.03)", border: "1px solid #2a2a3a",
-    borderRadius: "6px", padding: "36px", whiteSpace: "pre-wrap",
+    borderRadius: "6px", padding: "36px",
     lineHeight: 1.8, fontSize: "14px", color: "#d8d0c0",
     fontFamily: "'Georgia', serif",
   },
@@ -573,6 +638,7 @@ if (typeof document !== "undefined") {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0a0a0f; }
     input::placeholder { color: #383838; }
+    textarea::placeholder { color: #383838; }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
