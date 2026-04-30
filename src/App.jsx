@@ -12,7 +12,7 @@ const CONFIG = {
   // Stripe: crie em dashboard.stripe.com
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/test_bJe7sKgBo4yEaR15f3dby00",
 
-  LIMITE_GRATUITO: 5,
+  LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
 };
 // ============================================================
