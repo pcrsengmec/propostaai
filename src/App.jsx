@@ -10,9 +10,9 @@ const CONFIG = {
   FIREBASE_PROJECT_ID: "propostaai",
 
   // Stripe: crie em dashboard.stripe.com
-  STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
+  STRIPE_PAYMENT_LINK: "https://buy.stripe.com/test_bJe7sKgBo4yEaR15f3dby00",
 
-  LIMITE_GRATUITO: 3,
+  LIMITE_GRATUITO: 5,
   PRECO: "R$ 22/mês",
 };
 // ============================================================
