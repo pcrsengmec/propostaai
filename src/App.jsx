@@ -4,14 +4,11 @@ import { useState, useEffect } from "react";
 // CONFIGURAÇÃO — substitua com suas chaves reais
 // ============================================================
 const CONFIG = {
-  // Firebase: crie em console.firebase.google.com
   FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
   FIREBASE_AUTH_DOMAIN: "propostaai.firebaseapp.com",
   FIREBASE_PROJECT_ID: "propostaai",
-
-  // Stripe: crie em dashboard.stripe.com
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
-
+  STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00", // 👈 portal do cliente
   LIMITE_GRATUITO: 5,
   PRECO: "R$ 22/mês",
 };
@@ -62,7 +59,6 @@ const useUsage = (user) => {
     setCount(next);
   };
 
-  // Demo: simula assinatura ativa
   const ativarDemo = () => {
     localStorage.setItem(subKey, "true");
     setSubscribed(true);
@@ -314,9 +310,20 @@ A proposta deve ter: cabeçalho com data, apresentação, entendimento da necess
               </span> proposta{usage.remaining !== 1 ? "s" : ""} restante{usage.remaining !== 1 ? "s" : ""}
             </div>
           )}
+
+          {/* ✅ Badge PRO + botão Gerenciar assinatura */}
           {usage.subscribed && (
-            <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
+              <button
+                onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")}
+                style={css.btnGerenciar}
+              >
+                Gerenciar assinatura
+              </button>
+            </div>
           )}
+
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={css.avatar}>{user.name[0]}</div>
             <button onClick={onLogout} style={css.btnSair}>Sair</button>
@@ -485,11 +492,6 @@ const css = {
     textTransform: "uppercase", cursor: "pointer", fontWeight: "bold",
     fontFamily: "'Georgia', serif", marginBottom: "10px",
   },
-  btnDemo: {
-    width: "100%", padding: "12px", background: "transparent",
-    color: "#555", border: "1px dashed #333", borderRadius: "4px",
-    fontSize: "12px", cursor: "pointer", fontFamily: "'Georgia', serif",
-  },
   topbar: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "16px 32px", borderBottom: "1px solid #1a1a2a",
@@ -503,6 +505,19 @@ const css = {
   btnSair: {
     background: "none", border: "none", color: "#555", fontSize: "12px",
     cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif",
+  },
+  // ✅ Novo estilo para o botão de gerenciar assinatura
+  btnGerenciar: {
+    background: "none",
+    border: "1px solid #2a2a3a",
+    color: "#888",
+    fontSize: "11px",
+    padding: "4px 10px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontFamily: "'Georgia', serif",
+    letterSpacing: "1px",
+    transition: "border-color 0.2s, color 0.2s",
   },
   label: {
     display: "block", fontSize: "10px", letterSpacing: "2px",
@@ -561,6 +576,7 @@ if (typeof document !== "undefined") {
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+    .btn-gerenciar:hover { border-color: #c8a96e !important; color: #c8a96e !important; }
   `;
   document.head.appendChild(s);
 }
