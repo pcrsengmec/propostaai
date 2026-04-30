@@ -12,7 +12,7 @@ const CONFIG = {
   // Stripe: crie em dashboard.stripe.com
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/test_bJe7sKgBo4yEaR15f3dby00",
 
-  LIMITE_GRATUITO: 3,
+  LIMITE_GRATUITO: 5,
   PRECO: "R$ 22/mês",
 };
 // ============================================================
@@ -131,7 +131,7 @@ function TelaLogin({ onLogin, loading }) {
   );
 }
 
-function TelaPaywall({ user, onAssinar, onDemoAssinar }) {
+function TelaPaywall({ user, onAssinar }) {
   return (
     <div style={css.paywallWrap}>
       <div style={css.paywallCard}>
@@ -163,10 +163,6 @@ function TelaPaywall({ user, onAssinar, onDemoAssinar }) {
 
         <button onClick={onAssinar} style={css.btnPro}>
           Assinar por {CONFIG.PRECO} →
-        </button>
-
-        <button onClick={onDemoAssinar} style={css.btnDemo}>
-          🎯 Simular assinatura (demo)
         </button>
 
         <p style={{ color: "#333", fontSize: "11px", marginTop: "16px", textAlign: "center" }}>
@@ -428,7 +424,6 @@ export default function App() {
       <TelaPaywall
         user={user}
         onAssinar={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")}
-        onDemoAssinar={() => { usage.ativarDemo(); setShowPaywall(false); }}
       />
     );
 
