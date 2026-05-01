@@ -14,9 +14,6 @@ const CONFIG = {
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
-   // 🔐 LGPD
-  TERMOS_LINK: "/termos.html",
-  PRIVACIDADE_LINK: "/privacidade.html",
 };
 
 const firebaseConfig = {
@@ -269,11 +266,113 @@ function exportarPDF(proposta, layoutId, isPro) {
   win.document.close();
 }
 
+
+// ============================================================
+// Modal de Termos de Uso
+// ============================================================
+function TermosModal({ onAceitar, onRecusar }) {
+  const [lido, setLido] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  const handleScroll = (e) => {
+    const el = e.target;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setScrolled(true);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"Georgia,serif"}}>
+      <div style={{maxWidth:"600px",width:"100%",background:"#0d0d14",border:"1px solid #2a2a3a",borderRadius:"8px",display:"flex",flexDirection:"column",maxHeight:"90vh"}}>
+        
+        {/* Header */}
+        <div style={{padding:"28px 32px 20px",borderBottom:"1px solid #1a1a2a"}}>
+          <div style={{fontSize:"10px",letterSpacing:"3px",color:"#c8a96e",textTransform:"uppercase",marginBottom:"8px"}}>PropostaAI</div>
+          <h2 style={{fontSize:"20px",fontWeight:"normal",color:"#f0e8d8",margin:0}}>Termos de Uso e Política de Privacidade</h2>
+          <p style={{color:"#666",fontSize:"12px",marginTop:"6px"}}>Leia com atenção antes de continuar</p>
+        </div>
+
+        {/* Conteúdo rolável */}
+        <div onScroll={handleScroll} style={{overflowY:"auto",padding:"24px 32px",flex:1,scrollbarWidth:"thin",scrollbarColor:"#2a2a3a #0d0d14"}}>
+          {[
+            {titulo:"1. Aceitação dos Termos", texto:"Ao utilizar o PropostaAI (fecharproposta.com.br), você declara ter lido, compreendido e aceito integralmente os presentes Termos de Uso. Caso não concorde com qualquer disposição, interrompa imediatamente o uso da plataforma."},
+            {titulo:"2. Coleta e Uso de Informações", texto:"O PropostaAI coleta informações fornecidas voluntariamente pelo usuário, incluindo nome, e-mail, dados da empresa, dados do cliente e demais informações inseridas nos formulários. Essas informações são utilizadas exclusivamente para geração das propostas comerciais solicitadas e melhoria dos serviços oferecidos."},
+            {titulo:"3. Responsabilidade pelo Conteúdo", texto:"O usuário é o único e exclusivo responsável pelo conteúdo das informações inseridas na plataforma, bem como pelas propostas geradas. O PropostaAI não se responsabiliza pela veracidade, precisão, legalidade ou adequação das informações fornecidas pelo usuário, nem pelo uso que este fizer das propostas geradas."},
+            {titulo:"4. Isenção de Responsabilidade", texto:"O PropostaAI não garante que as propostas geradas pela inteligência artificial sejam adequadas para qualquer finalidade específica, negociação ou contexto jurídico. O conteúdo gerado é de caráter orientativo e não substitui assessoria jurídica, contábil ou comercial especializada. O usuário assume total responsabilidade pelo uso e envio das propostas geradas."},
+            {titulo:"5. Dados de Terceiros", texto:"Ao inserir dados de terceiros (clientes, parceiros, colaboradores) na plataforma, o usuário declara possuir autorização para tal e assume total responsabilidade pelo tratamento dessas informações, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)."},
+            {titulo:"6. Propriedade Intelectual", texto:"As propostas geradas pertencem ao usuário que as criou. O PropostaAI retém direitos sobre a plataforma, interface, algoritmos e tecnologia empregada, não concedendo ao usuário qualquer direito sobre esses elementos."},
+            {titulo:"7. Pagamentos e Assinatura", texto:"Os planos pagos são processados de forma segura pela plataforma Stripe. O PropostaAI não armazena dados de cartão de crédito. O cancelamento pode ser realizado a qualquer momento pelo usuário, sem multa, com efeito ao final do período contratado."},
+            {titulo:"8. Limitação de Responsabilidade", texto:"Em nenhuma hipótese o PropostaAI será responsável por danos diretos, indiretos, incidentais, especiais ou consequentes decorrentes do uso ou impossibilidade de uso da plataforma, mesmo que previamente advertido sobre tal possibilidade."},
+            {titulo:"9. Alterações nos Termos", texto:"O PropostaAI reserva-se o direito de modificar estes Termos a qualquer momento. As alterações entrarão em vigor imediatamente após sua publicação na plataforma. O uso continuado após as alterações implica aceitação dos novos termos."},
+            {titulo:"10. Contato", texto:"Em caso de dúvidas sobre estes Termos, entre em contato pelo e-mail: paulocesar2582@gmail.com"},
+          ].map((item, i) => (
+            <div key={i} style={{marginBottom:"20px"}}>
+              <h3 style={{fontSize:"13px",color:"#c8a96e",fontWeight:"bold",marginBottom:"8px",fontFamily:"Georgia,serif"}}>{item.titulo}</h3>
+              <p style={{fontSize:"12px",color:"#999",lineHeight:"1.8",fontFamily:"Georgia,serif"}}>{item.texto}</p>
+            </div>
+          ))}
+          {!scrolled && (
+            <div style={{textAlign:"center",color:"#555",fontSize:"11px",letterSpacing:"1px",padding:"8px 0"}}>▼ Role para baixo para continuar</div>
+          )}
+        </div>
+
+        {/* Checkbox + Botões */}
+        <div style={{padding:"20px 32px 28px",borderTop:"1px solid #1a1a2a"}}>
+          <label style={{display:"flex",alignItems:"flex-start",gap:"12px",cursor:"pointer",marginBottom:"20px"}}>
+            <input
+              type="checkbox"
+              checked={lido}
+              onChange={e=>setLido(e.target.checked)}
+              style={{width:"16px",height:"16px",marginTop:"2px",accentColor:"#c8a96e",cursor:"pointer",flexShrink:0}}
+            />
+            <span style={{fontSize:"12px",color:"#888",lineHeight:"1.7",fontFamily:"Georgia,serif"}}>
+              Li e concordo com os Termos de Uso e Política de Privacidade do PropostaAI, incluindo a coleta de informações e a isenção de responsabilidade pelo conteúdo gerado.
+            </span>
+          </label>
+          <div style={{display:"flex",gap:"12px"}}>
+            <button
+              onClick={onAceitar}
+              disabled={!lido}
+              style={{flex:1,padding:"14px",background:lido?"#c8a96e":"#2a2a3a",color:lido?"#0a0a0f":"#555",border:"none",borderRadius:"4px",fontSize:"12px",letterSpacing:"2px",textTransform:"uppercase",cursor:lido?"pointer":"not-allowed",fontWeight:"bold",fontFamily:"Georgia,serif",transition:"all 0.2s"}}
+            >
+              Concordo
+            </button>
+            <button
+              onClick={onRecusar}
+              style={{flex:1,padding:"14px",background:"transparent",color:"#555",border:"1px solid #2a2a3a",borderRadius:"4px",fontSize:"12px",letterSpacing:"2px",textTransform:"uppercase",cursor:"pointer",fontFamily:"Georgia,serif"}}
+            >
+              Não concordo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tela Recusou Termos
+// ============================================================
+function TelaTermosRecusados({ onVoltar }) {
+  return (
+    <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",fontFamily:"Georgia,serif"}}>
+      <div style={{maxWidth:"440px",width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:"48px",marginBottom:"24px"}}>🔒</div>
+        <h2 style={{fontSize:"22px",fontWeight:"normal",color:"#f0e8d8",marginBottom:"12px"}}>Acesso não autorizado</h2>
+        <p style={{color:"#666",fontSize:"14px",lineHeight:"1.8",marginBottom:"32px"}}>
+          Para utilizar o PropostaAI é necessário aceitar os Termos de Uso e Política de Privacidade.<br/><br/>
+          Se mudar de ideia, clique no botão abaixo para rever os termos.
+        </p>
+        <button onClick={onVoltar} style={{padding:"14px 32px",background:"transparent",color:"#c8a96e",border:"1px solid #c8a96e",borderRadius:"4px",fontSize:"12px",letterSpacing:"2px",textTransform:"uppercase",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+          Rever os termos
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // Tela Login
 // ============================================================
 function TelaLogin({ onLogin, loading }) {
-  const [aceitou, setAceitou] = useState(false);
   return (
     <div style={S.loginWrap}>
       <div style={S.loginCard}>
@@ -284,15 +383,8 @@ function TelaLogin({ onLogin, loading }) {
           {["✦ Proposta completa em &lt;30 segundos","✦ Tom profissional e persuasivo","✦ 3 propostas grátis para testar"].map((b,i)=>(
             <div key={i} style={S.beneficioItem} dangerouslySetInnerHTML={{__html:b}}/>
           ))}
-        <button
-        onClick={onLogin}
-        disabled={loading || !aceitou}
-        style={{
-        ...S.btnGoogle,
-        opacity: aceitou ? 1 : 0.5,
-        cursor: aceitou ? "pointer" : "not-allowed"
-         }}
-          >
+        </div>
+        <button onClick={onLogin} disabled={loading} style={S.btnGoogle}>
           {loading ? "Entrando..." : (<><svg width="18" height="18" viewBox="0 0 18 18" style={{marginRight:10}}>
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
             <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
@@ -300,26 +392,6 @@ function TelaLogin({ onLogin, loading }) {
             <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
           </svg>Entrar com Google</>)}
         </button>
-               {/* 🔐 LGPD */}
-            {/* 👇 COLE AQUI */}
-            <div style={{marginTop:"12px", textAlign:"center"}}>
-              <label style={{fontSize:"12px", color:"#888"}}>
-                <input
-                  type="checkbox"
-                  checked={aceitou}
-                  onChange={(e) => setAceitou(e.target.checked)}
-                  style={{marginRight:"6px"}}
-                />
-                  Eu li e aceito os{" "}
-                  <a href="/termos.html" target="_blank" rel="noopener noreferrer">
-                    Termos de Uso
-                  </a>{" "}
-                  e{" "}
-                  <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">
-                    Política de Privacidade
-                  </a>           
-              </label>
-            </div>
         <p style={{color:"#444",fontSize:"11px",marginTop:"16px",textAlign:"center"}}>Sem cartão. Sem compromisso. Cancele quando quiser.</p>
       </div>
     </div>
@@ -702,16 +774,43 @@ export default function App() {
   const {user,loadingAuth,loginGoogle,logout} = useAuth();
   const usage = useUsage(user);
   const [showPaywall,setShowPaywall] = useState(false);
+  const [termosStatus, setTermosStatus] = useState(() => {
+    // "pendente" | "aceito" | "recusado"
+    return localStorage.getItem("termos_aceito") === "true" ? "aceito" : "pendente";
+  });
 
   useEffect(()=>{
     if (user && !usage.loadingSubscription && !usage.canGenerate) setShowPaywall(true);
     else setShowPaywall(false);
   },[usage.canGenerate,usage.loadingSubscription,user]);
 
+  const handleAceitarTermos = () => {
+    localStorage.setItem("termos_aceito", "true");
+    setTermosStatus("aceito");
+  };
+
+  const handleRecusarTermos = () => {
+    localStorage.removeItem("termos_aceito");
+    setTermosStatus("recusado");
+  };
+
   if (loadingAuth) return (
     <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={S.spinner}/>
     </div>
+  );
+
+  // Termos não aceitos ainda
+  if (termosStatus === "pendente") return (
+    <>
+      <div style={{minHeight:"100vh",background:"#0a0a0f"}}/>
+      <TermosModal onAceitar={handleAceitarTermos} onRecusar={handleRecusarTermos}/>
+    </>
+  );
+
+  // Recusou os termos
+  if (termosStatus === "recusado") return (
+    <TelaTermosRecusados onVoltar={()=>setTermosStatus("pendente")}/>
   );
 
   if (!user)        return <TelaLogin onLogin={loginGoogle} loading={loadingAuth}/>;
