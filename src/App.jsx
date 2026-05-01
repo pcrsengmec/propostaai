@@ -14,6 +14,9 @@ const CONFIG = {
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
+   // 🔐 LGPD
+  TERMOS_LINK: "https://seusite.com/termos",
+  PRIVACIDADE_LINK: "https://seusite.com/privacidade",
 };
 
 const firebaseConfig = {
