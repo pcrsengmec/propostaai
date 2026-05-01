@@ -309,24 +309,10 @@ function exportarPDF(proposta, layoutId, isPro) {
     };
     window.onafterprint = function() { window.close(); };
   <\/script>
-  </body></html>`);
-  if (mobile) {
-    // Mobile: use blob URL
-    const blob = new Blob([htmlStr], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
-  } else {
-    // Desktop: open new window and print
-    const win = window.open("", "_blank");
-    win.document.write(htmlStr);
-    win.document.close();
-  }
+  </body></html>`;
+  const win = window.open("", "_blank");
+  win.document.write(htmlStr);
+  win.document.close();
 }
 
 
