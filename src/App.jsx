@@ -94,6 +94,31 @@ const useUsage = (user) => {
   return { subscribed, remaining, canGenerate, increment, loadingSubscription };
 };
 
+
+// ============================================================
+// Hook de Depoimentos — busca avaliações reais do Firestore
+// ============================================================
+const useDepoimentos = () => {
+  const [depoimentos, setDepoimentos] = useState([]);
+
+  useEffect(() => {
+    const buscar = async () => {
+      try {
+        const snap = await getDocs(collection(db, "avaliacoes"));
+        const todos = snap.docs
+          .map(d => d.data())
+          .filter(d => d.estrelas >= 4 && d.comentario && d.comentario.trim().length > 10)
+          .sort((a, b) => (b.criadoEm?.seconds || 0) - (a.criadoEm?.seconds || 0))
+          .slice(0, 3);
+        setDepoimentos(todos);
+      } catch (e) { console.error(e); }
+    };
+    buscar();
+  }, []);
+
+  return depoimentos;
+};
+
 // ============================================================
 // Form field definitions
 // ============================================================
@@ -384,10 +409,75 @@ const Depoimento = () => (
   </div>
 );
 
+
+// ============================================================
+// Seção de Depoimentos Reais
+// ============================================================
+function DepoimentosReais({ depoimentos }) {
+  const [atual, setAtual] = useState(0);
+
+  useEffect(() => {
+    if (depoimentos.length <= 1) return;
+    const t = setInterval(() => setAtual(i => (i + 1) % depoimentos.length), 4000);
+    return () => clearInterval(t);
+  }, [depoimentos.length]);
+
+  if (!depoimentos.length) return null;
+
+  const LABELS = ["", "Péssimo", "Ruim", "Médio", "Bom", "Excelente"];
+  const d = depoimentos[atual];
+
+  return (
+    <div style={{marginBottom:"28px"}}>
+      <div style={{fontSize:"10px",letterSpacing:"3px",color:"#555",textTransform:"uppercase",textAlign:"center",marginBottom:"16px",fontFamily:"Georgia,serif"}}>
+        O que dizem nossos usuários
+      </div>
+
+      {/* Card principal */}
+      <div style={{background:"rgba(200,169,110,0.06)",border:"1px solid rgba(200,169,110,0.2)",borderRadius:"8px",padding:"20px 22px",position:"relative",minHeight:"120px",transition:"all 0.4s"}}>
+        {/* Aspas decorativas */}
+        <div style={{position:"absolute",top:"12px",left:"18px",fontSize:"48px",color:"rgba(200,169,110,0.15)",lineHeight:1,fontFamily:"Georgia,serif",userSelect:"none"}}>"</div>
+
+        {/* Estrelas */}
+        <div style={{display:"flex",gap:"2px",marginBottom:"10px",justifyContent:"center"}}>
+          {[1,2,3,4,5].map(i => (
+            <span key={i} style={{fontSize:"15px",color:i<=d.estrelas?"#f5c518":"#333"}}>★</span>
+          ))}
+          <span style={{fontSize:"11px",color:"#c8a96e",marginLeft:"6px",fontFamily:"Georgia,serif",letterSpacing:"1px"}}>{LABELS[d.estrelas]}</span>
+        </div>
+
+        {/* Comentário */}
+        <p style={{fontSize:"13px",color:"#b0a890",lineHeight:"1.8",fontStyle:"italic",textAlign:"center",fontFamily:"Georgia,serif",padding:"0 12px",marginBottom:"12px"}}>
+          "{d.comentario}"
+        </p>
+
+        {/* Nome */}
+        <div style={{textAlign:"center",fontSize:"11px",color:"#555",letterSpacing:"1px",fontFamily:"Georgia,serif"}}>
+          — {d.nome || d.email?.split("@")[0] || "Usuário PropostaAI"}
+          {d.plano === "pro" && <span style={{marginLeft:"8px",color:"#c8a96e",fontSize:"10px",border:"1px solid rgba(200,169,110,0.3)",padding:"1px 6px",borderRadius:"2px",letterSpacing:"1px"}}>PRO</span>}
+        </div>
+      </div>
+
+      {/* Indicadores de navegação */}
+      {depoimentos.length > 1 && (
+        <div style={{display:"flex",justifyContent:"center",gap:"6px",marginTop:"12px"}}>
+          {depoimentos.map((_, i) => (
+            <div
+              key={i}
+              onClick={() => setAtual(i)}
+              style={{width:i===atual?"20px":"6px",height:"6px",borderRadius:"3px",background:i===atual?"#c8a96e":"#2a2a3a",cursor:"pointer",transition:"all 0.3s"}}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // Tela Login
 // ============================================================
-function TelaLogin({ onLogin, loading }) {
+function TelaLogin({ onLogin, loading, depoimentos }) {
   return (
     <div style={S.loginWrap}>
       <div style={S.loginCard}>
@@ -399,6 +489,7 @@ function TelaLogin({ onLogin, loading }) {
             <div key={i} style={S.beneficioItem} dangerouslySetInnerHTML={{__html:b}}/>
           ))}
         </div>
+        <DepoimentosReais depoimentos={depoimentos}/>
         <Depoimento/>
         <button onClick={onLogin} disabled={loading} style={S.btnGoogle}>
           {loading ? "Entrando..." : (<><svg width="18" height="18" viewBox="0 0 18 18" style={{marginRight:10}}>
@@ -790,6 +881,7 @@ ${f.diferenciais ? "9" : "8"}. ASSINATURA`;
 export default function App() {
   const {user,loadingAuth,loginGoogle,logout} = useAuth();
   const usage = useUsage(user);
+  const depoimentos = useDepoimentos();
   const [showPaywall,setShowPaywall] = useState(false);
   const [termosStatus, setTermosStatus] = useState(() => {
     // "pendente" | "aceito" | "recusado"
@@ -830,7 +922,7 @@ export default function App() {
     <TelaTermosRecusados onVoltar={()=>setTermosStatus("pendente")}/>
   );
 
-  if (!user)        return <TelaLogin onLogin={loginGoogle} loading={loadingAuth}/>;
+  if (!user)        return <TelaLogin onLogin={loginGoogle} loading={loadingAuth} depoimentos={depoimentos}/>;
   if (showPaywall)  return <TelaPaywall onAssinar={()=>window.open(CONFIG.STRIPE_PAYMENT_LINK,"_blank")}/>;
   return <TelaApp user={user} usage={usage} onLogout={logout}/>;
 }
