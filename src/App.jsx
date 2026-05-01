@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
 import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 
 // ============================================================
@@ -29,27 +37,28 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Detecta se é mobile
+const isMobile = () => /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+
 // ============================================================
-// Hook de Auth com signInWithRedirect
+// Hook de Auth — popup no desktop, redirect no mobile
 // ============================================================
 const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
+    // Tenta capturar resultado de redirect (mobile)
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
           const u = result.user;
-          setUser({
-            name: u.displayName || u.email,
-            email: u.email,
-            photo: u.photoURL,
-          });
+          setUser({ name: u.displayName || u.email, email: u.email, photo: u.photoURL });
         }
       })
       .catch((e) => console.error("Redirect error:", e));
 
+    // Observa estado de autenticação
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -67,9 +76,19 @@ const useAuth = () => {
   }, []);
 
   const loginGoogle = async () => {
+    const provider = new GoogleAuthProvider();
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      if (isMobile()) {
+        // Mobile: usa redirect
+        await signInWithRedirect(auth, provider);
+      } else {
+        // Desktop: usa popup (sem problema de cookie)
+        const result = await signInWithPopup(auth, provider);
+        if (result?.user) {
+          const u = result.user;
+          setUser({ name: u.displayName || u.email, email: u.email, photo: u.photoURL });
+        }
+      }
     } catch (e) {
       console.error("Login error:", e);
     }
@@ -98,16 +117,12 @@ const useUsage = (user) => {
   useEffect(() => {
     setCount(getCount());
     setSubscribed(false);
-
     if (!user) return;
 
     const checkSubscription = async () => {
       setLoadingSubscription(true);
       try {
-        const q = query(
-          collection(db, "assinaturas"),
-          where("email", "==", user.email)
-        );
+        const q = query(collection(db, "assinaturas"), where("email", "==", user.email));
         const snap = await getDocs(q);
         if (!snap.empty) {
           const data = snap.docs[0].data();
@@ -160,8 +175,7 @@ function renderProposta(texto) {
       const cells = match.split('|').filter(c => c.trim() !== '');
       const isHeader = cells.some(c => c.includes('---'));
       if (isHeader) return '';
-      const tag = 'td';
-      return '<tr>' + cells.map(c => `<${tag} style="padding:8px 12px;border:1px solid #2a2a3a;color:#d8d0c0;font-size:13px">${c.trim()}</${tag}>`).join('') + '</tr>';
+      return '<tr>' + cells.map(c => `<td style="padding:8px 12px;border:1px solid #2a2a3a;color:#d8d0c0;font-size:13px">${c.trim()}</td>`).join('') + '</tr>';
     })
     .replace(/(<tr>.*<\/tr>)/gs, '<table style="width:100%;border-collapse:collapse;margin:16px 0">$1</table>')
     .replace(/\n/g, '<br/>');
@@ -185,17 +199,13 @@ function TelaLogin({ onLogin, loading }) {
           IA cria propostas persuasivas para você fechar mais negócios.
           Comece grátis — {CONFIG.LIMITE_GRATUITO} propostas sem cartão.
         </p>
-
         <div style={css.beneficios}>
           {["✦ Proposta completa em &lt;30 segundos", "✦ Tom profissional e persuasivo", "✦ 3 propostas grátis para testar"].map((b, i) => (
             <div key={i} style={css.beneficioItem} dangerouslySetInnerHTML={{ __html: b }} />
           ))}
         </div>
-
         <button onClick={onLogin} disabled={loading} style={css.btnGoogle}>
-          {loading ? (
-            <span>Entrando...</span>
-          ) : (
+          {loading ? <span>Entrando...</span> : (
             <>
               <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: 10 }}>
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
@@ -215,7 +225,7 @@ function TelaLogin({ onLogin, loading }) {
   );
 }
 
-function TelaPaywall({ user, onAssinar }) {
+function TelaPaywall({ onAssinar }) {
   return (
     <div style={css.paywallWrap}>
       <div style={css.paywallCard}>
@@ -227,16 +237,13 @@ function TelaPaywall({ user, onAssinar }) {
         <p style={{ color: "#888", fontSize: "14px", marginBottom: "32px", lineHeight: 1.7 }}>
           Assine o plano Pro e gere propostas ilimitadas, com histórico e templates exclusivos.
         </p>
-
         <div style={css.planoCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <div>
               <div style={{ fontSize: "13px", color: "#c8a96e", letterSpacing: "2px", textTransform: "uppercase" }}>Plano Pro</div>
               <div style={{ fontSize: "32px", fontWeight: "bold", color: "#f0e8d8" }}>{CONFIG.PRECO}</div>
             </div>
-            <div style={{ fontSize: "11px", color: "#888", textAlign: "right" }}>
-              Cancele<br />quando quiser
-            </div>
+            <div style={{ fontSize: "11px", color: "#888", textAlign: "right" }}>Cancele<br />quando quiser</div>
           </div>
           {["Propostas ilimitadas", "Todos os templates", "Histórico completo", "Suporte prioritário"].map((f, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", color: "#d8d0c0", fontSize: "14px" }}>
@@ -244,11 +251,7 @@ function TelaPaywall({ user, onAssinar }) {
             </div>
           ))}
         </div>
-
-        <button onClick={onAssinar} style={css.btnPro}>
-          Assinar por {CONFIG.PRECO} →
-        </button>
-
+        <button onClick={onAssinar} style={css.btnPro}>Assinar por {CONFIG.PRECO} →</button>
         <p style={{ color: "#333", fontSize: "11px", marginTop: "16px", textAlign: "center" }}>
           Pagamento seguro via Stripe · Cancele a qualquer momento
         </p>
@@ -308,46 +311,13 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
 
   const exportarPDF = () => {
     const win = window.open("", "_blank");
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Proposta Comercial</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Georgia, serif; max-width: 800px; margin: 0 auto; padding: 60px; color: #1a1a1a; line-height: 1.8; }
-          .header { text-align: center; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 2px solid #c8a96e; }
-          .logo { font-size: 11px; letter-spacing: 4px; color: #c8a96e; text-transform: uppercase; margin-bottom: 8px; }
-          .titulo { font-size: 22px; font-weight: normal; color: #1a1a1a; }
-          h2 { font-size: 13px; color: #c8a96e; letter-spacing: 2px; text-transform: uppercase; margin: 32px 0 10px; font-weight: normal; }
-          h3 { font-size: 14px; color: #1a1a1a; margin: 20px 0 8px; font-weight: bold; }
-          hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
-          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-          td { padding: 8px 12px; border: 1px solid #ddd; font-size: 13px; }
-          .proposta { font-size: 14px; line-height: 1.9; color: #222; }
-          .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 10px; color: #999; letter-spacing: 2px; text-transform: uppercase; }
-          @media print { body { padding: 40px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="logo">PropostaAI</div>
-          <div class="titulo">Proposta Comercial</div>
-        </div>
-        <div class="proposta">${proposta
-          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-          .replace(/^---$/gm, '<hr/>')
-          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-          .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\n/g, '<br/>')
-        }</div>
-        <div class="footer">Gerado por PropostaAI · fecharproposta.com.br</div>
-        <script>window.onload = function() { window.print(); };<\/script>
-      </body>
-      </html>
-    `);
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Proposta Comercial</title>
+      <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Georgia, serif; max-width: 800px; margin: 0 auto; padding: 60px; color: #1a1a1a; line-height: 1.8; } .header { text-align: center; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 2px solid #c8a96e; } .logo { font-size: 11px; letter-spacing: 4px; color: #c8a96e; text-transform: uppercase; margin-bottom: 8px; } .titulo { font-size: 22px; font-weight: normal; } h2 { font-size: 13px; color: #c8a96e; letter-spacing: 2px; text-transform: uppercase; margin: 32px 0 10px; font-weight: normal; } h3 { font-size: 14px; margin: 20px 0 8px; font-weight: bold; } hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; } table { width: 100%; border-collapse: collapse; margin: 16px 0; } td { padding: 8px 12px; border: 1px solid #ddd; font-size: 13px; } .proposta { font-size: 14px; line-height: 1.9; } .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 10px; color: #999; letter-spacing: 2px; text-transform: uppercase; } @media print { body { padding: 40px; } }</style>
+      </head><body>
+      <div class="header"><div class="logo">PropostaAI</div><div class="titulo">Proposta Comercial</div></div>
+      <div class="proposta">${proposta.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/^---$/gm,"<hr/>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\n/g,"<br/>")}</div>
+      <div class="footer">Gerado por PropostaAI · fecharproposta.com.br</div>
+      <script>window.onload=function(){window.print();}<\/script></body></html>`);
     win.document.close();
   };
 
@@ -365,23 +335,17 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
       <div style={css.topbar}>
-        <div>
-          <span style={{ fontSize: "11px", letterSpacing: "3px", color: "#c8a96e", textTransform: "uppercase" }}>PropostaAI</span>
-        </div>
+        <span style={{ fontSize: "11px", letterSpacing: "3px", color: "#c8a96e", textTransform: "uppercase" }}>PropostaAI</span>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {!usage.subscribed && (
             <div style={{ fontSize: "12px", color: "#888" }}>
-              <span style={{ color: usage.remaining <= 1 ? "#e05555" : "#c8a96e", fontWeight: "bold" }}>
-                {usage.remaining}
-              </span> proposta{usage.remaining !== 1 ? "s" : ""} restante{usage.remaining !== 1 ? "s" : ""}
+              <span style={{ color: usage.remaining <= 1 ? "#e05555" : "#c8a96e", fontWeight: "bold" }}>{usage.remaining}</span> proposta{usage.remaining !== 1 ? "s" : ""} restante{usage.remaining !== 1 ? "s" : ""}
             </div>
           )}
           {usage.subscribed && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
-              <button onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")} style={css.btnGerenciar}>
-                Gerenciar assinatura
-              </button>
+              <button onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")} style={css.btnGerenciar}>Gerenciar assinatura</button>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -394,45 +358,22 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
       <div style={{ maxWidth: "700px", margin: "0 auto", padding: "48px 24px" }}>
         {step === "dados" && (
           <div>
-            <h2 style={{ fontSize: "28px", fontWeight: "normal", color: "#f0e8d8", marginBottom: "8px", letterSpacing: "-0.5px" }}>
-              Nova proposta
-            </h2>
-            <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>
-              Preencha os dados e a IA cria uma proposta profissional para você.
-            </p>
+            <h2 style={{ fontSize: "28px", fontWeight: "normal", color: "#f0e8d8", marginBottom: "8px", letterSpacing: "-0.5px" }}>Nova proposta</h2>
+            <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>Preencha os dados e a IA cria uma proposta profissional para você.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
               {fields.map((f) => (
                 <div key={f.key}>
-                  <label style={css.label}>
-                    {f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}
-                  </label>
+                  <label style={css.label}>{f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}</label>
                   {f.key === "diferenciais" ? (
-                    <textarea
-                      value={form[f.key] || ""}
-                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      rows={3}
-                      style={{ ...css.input, resize: "vertical", minHeight: "80px" }}
-                    />
+                    <textarea value={form[f.key] || ""} onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} rows={3} style={{ ...css.input, resize: "vertical", minHeight: "80px" }} />
                   ) : (
-                    <input
-                      value={form[f.key] || ""}
-                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      style={css.input}
-                      onFocus={(e) => (e.target.style.borderColor = "#c8a96e")}
-                      onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")}
-                    />
+                    <input value={form[f.key] || ""} onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={css.input} onFocus={(e) => (e.target.style.borderColor = "#c8a96e")} onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")} />
                   )}
                 </div>
               ))}
             </div>
             {error && <div style={{ marginTop: "12px", color: "#e05555", fontSize: "13px" }}>{error}</div>}
-            <button
-              onClick={gerar}
-              disabled={!isValid}
-              style={{ ...css.btnPrimary, marginTop: "32px", opacity: isValid ? 1 : 0.4, cursor: isValid ? "pointer" : "not-allowed" }}
-            >
+            <button onClick={gerar} disabled={!isValid} style={{ ...css.btnPrimary, marginTop: "32px", opacity: isValid ? 1 : 0.4, cursor: isValid ? "pointer" : "not-allowed" }}>
               Gerar Proposta com IA →
             </button>
           </div>
@@ -454,21 +395,13 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
                 <h2 style={{ fontSize: "24px", fontWeight: "normal", color: "#f0e8d8", margin: 0 }}>Sua proposta está pronta</h2>
               </div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>
-                  {copied ? "✓ Copiado!" : "Copiar"}
-                </button>
-                <button onClick={exportarPDF} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto", background: "#1a5c1a" }}>
-                  📄 Exportar PDF
-                </button>
-                <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>
-                  Nova
-                </button>
+                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>{copied ? "✓ Copiado!" : "Copiar"}</button>
+                <button onClick={exportarPDF} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto", background: "#1a5c1a" }}>📄 Exportar PDF</button>
+                <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>Nova</button>
               </div>
             </div>
             <div style={css.propostaBox} dangerouslySetInnerHTML={renderProposta(proposta)} />
-            <div style={css.dica}>
-              💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.
-            </div>
+            <div style={css.dica}>💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.</div>
           </div>
         )}
       </div>
@@ -501,15 +434,7 @@ export default function App() {
   }
 
   if (!user) return <TelaLogin onLogin={loginGoogle} loading={loadingAuth} />;
-
-  if (showPaywall)
-    return (
-      <TelaPaywall
-        user={user}
-        onAssinar={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")}
-      />
-    );
-
+  if (showPaywall) return <TelaPaywall onAssinar={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")} />;
   return <TelaApp user={user} usage={usage} onLogout={logout} />;
 }
 
