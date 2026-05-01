@@ -387,6 +387,7 @@ REGRAS OBRIGATÓRIAS:
 4. Use **negrito** para destaques
 5. Separe seções com ---
 6. Gere a proposta COMPLETA até o final, incluindo PRÓXIMOS PASSOS e ASSINATURA
+7. Na seção ASSINATURA, deixe os campos de nome, cargo e data como linhas em branco (use underscores: _______________) — NUNCA use [A completar], [Data], [Nome] ou qualquer placeholder entre colchetes
 
 DADOS DO FORNECEDOR:
 ${linhasSeus}
