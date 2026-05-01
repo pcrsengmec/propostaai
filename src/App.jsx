@@ -161,7 +161,7 @@ function markdownToHtml(text, themeId) {
     .replace(/\*\*(.+?)\*\*/g, `<strong style="color:${c.bold}">$1</strong>`)
     .replace(/\*(.+?)\*/g, `<em>$1</em>`)
     .replace(/\\_/g, "_")
-    .replace(/_{3,}/g, '<span style="display:inline-block;border-bottom:1px solid currentColor;min-width:180px;margin:0 4px">&nbsp;</span>');
+    .replace(/_{3,}/g, '<span style="display:inline-block;border-bottom:1px solid currentColor;min-width:260px;margin:0 4px">&nbsp;</span>');
 
   // Strip leading #### from a string (when IA mixes bullet + heading)
   const stripHashes = (s) => s.replace(/^#{1,4}\s*/, "");
@@ -172,22 +172,27 @@ function markdownToHtml(text, themeId) {
 
   const flushTable = () => {
     if (!tbl.length) return;
-    const rows = tbl.filter(r => !/^\|[\s\-|]+\|$/.test(r.trim()));
+    // Filter separator rows: pure --- lines and rows where ALL cells are --- or ---:
+    const rows = tbl.filter(r => {
+      if (/^\|[\s\-|:]+\|$/.test(r.trim())) return false;
+      const cells = r.split("|").slice(1,-1).map(c=>c.trim());
+      if (cells.every(c => /^-+:?$/.test(c))) return false;
+      return true;
+    });
     if (!rows.length) { tbl = []; return; }
-    // Calculate number of columns from first row
-    const firstCells = rows[0].split("|").slice(1,-1);
-    const numCols = firstCells.length;
     html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif;table-layout:fixed">`;
     rows.forEach((row, idx) => {
       const cells = row.split("|").slice(1,-1).map(c=>c.trim());
       if (!cells.length) return;
       const isH = idx === 0;
       const tag = isH ? "th" : "td";
+      if (isH) html += "<thead>";
       html += `<tr>${cells.map(cell=>
         `<${tag} style="padding:9px 13px;border:1px solid ${c.tdb};color:${c.txt};font-size:13px;text-align:left;word-wrap:break-word;white-space:normal;${isH?`background:${c.tdhBg};font-weight:bold`:""}">${inline(stripHashes(cell))}</${tag}>`
       ).join("")}</tr>`;
+      if (isH) html += "</thead><tbody>";
     });
-    html += `</table>`;
+    html += `</tbody></table>`;
     tbl = [];
   };
 
@@ -279,9 +284,11 @@ function exportarPDF(proposta, layoutId, isPro) {
     p{font-size:13px;line-height:1.85;color:#333;margin:5px 0}
     hr{border:none;border-top:1px solid #eee;margin:20px 0}
     table{width:100%;border-collapse:collapse;margin:14px 0;table-layout:fixed}
+    thead{display:table-header-group}
     th{padding:9px 12px;border:1px solid #ddd;font-size:12px;background:#f5f5f0;text-align:left;font-weight:bold;word-wrap:break-word;white-space:normal}
     td{padding:8px 12px;border:1px solid #ddd;font-size:12px;word-wrap:break-word;white-space:normal}
     strong{color:#111}
+    .sig-line{display:inline-block;border-bottom:1px solid #333;min-width:280px;margin:0 4px}
     ${!isPro?`.wm{position:fixed;bottom:16px;left:0;right:0;text-align:center;font-size:9px;color:#ccc;letter-spacing:2px;text-transform:uppercase}`:""}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:0}}
   </style></head><body>
