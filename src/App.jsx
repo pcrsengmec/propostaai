@@ -369,6 +369,21 @@ function TelaTermosRecusados({ onVoltar }) {
   );
 }
 
+
+const Depoimento = () => (
+  <div style={{background:"rgba(200,169,110,0.06)",border:"1px solid rgba(200,169,110,0.15)",borderRadius:"6px",padding:"16px 20px",marginBottom:"24px",textAlign:"left"}}>
+    <div style={{display:"flex",gap:"2px",marginBottom:"8px"}}>
+      {[1,2,3,4,5].map(i=><span key={i} style={{color:"#f5c518",fontSize:"14px"}}>★</span>)}
+    </div>
+    <p style={{fontSize:"13px",color:"#b0a890",lineHeight:"1.8",fontStyle:"italic",marginBottom:"10px",fontFamily:"Georgia,serif"}}>
+      "Eu costumava gastar horas montando propostas no Word. Com o PropostaAI fechei um contrato de <strong style={{color:"#c8a96e",fontStyle:"normal"}}>R$ 18.000 em menos de 24 horas</strong>. Gerei a proposta em 30 segundos, exportei o PDF e enviei direto. O cliente disse que foi a proposta mais profissional que já recebeu."
+    </p>
+    <div style={{fontSize:"11px",color:"#555",letterSpacing:"1px",fontFamily:"Georgia,serif"}}>
+      — Paulo César Rezende · Consultor de Negócios
+    </div>
+  </div>
+);
+
 // ============================================================
 // Tela Login
 // ============================================================
@@ -384,6 +399,7 @@ function TelaLogin({ onLogin, loading }) {
             <div key={i} style={S.beneficioItem} dangerouslySetInnerHTML={{__html:b}}/>
           ))}
         </div>
+        <Depoimento/>
         <button onClick={onLogin} disabled={loading} style={S.btnGoogle}>
           {loading ? "Entrando..." : (<><svg width="18" height="18" viewBox="0 0 18 18" style={{marginRight:10}}>
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
@@ -427,6 +443,7 @@ function TelaPaywall({ onAssinar }) {
             </div>
           ))}
         </div>
+        <Depoimento/>
         <button onClick={onAssinar} style={S.btnPro}>Assinar por {CONFIG.PRECO} →</button>
         <p style={{color:"#333",fontSize:"11px",marginTop:"16px",textAlign:"center"}}>Pagamento seguro via Stripe · Cancele a qualquer momento</p>
       </div>
