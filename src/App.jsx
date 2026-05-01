@@ -165,7 +165,7 @@ function markdownToHtml(text, themeId) {
     .replace(/\*\*(.+?)\*\*/g, `<strong style="color:${c.bold}">$1</strong>`)
     .replace(/\*(.+?)\*/g, `<em>$1</em>`)
     .replace(/\\_/g, "_")
-    .replace(/_{3,}/g, '<span style="display:inline-block;border-bottom:1px solid currentColor;min-width:260px;margin:0 4px">&nbsp;</span>');
+    .replace(/_{3,}/g, '<span style="display:inline-block;border-bottom:1px solid currentColor;min-width:min(260px,60%);margin:0 4px">&nbsp;</span>');
 
   // Strip leading #### from a string (when IA mixes bullet + heading)
   const stripHashes = (s) => s.replace(/^#{1,4}\s*/, "");
@@ -184,7 +184,7 @@ function markdownToHtml(text, themeId) {
       return true;
     });
     if (!rows.length) { tbl = []; return; }
-    html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif;table-layout:fixed">`;
+    html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif;word-break:normal">`;
     rows.forEach((row, idx) => {
       const cells = row.split("|").slice(1,-1).map(c=>c.trim());
       if (!cells.length) return;
@@ -263,8 +263,12 @@ const LAYOUTS = [
 // PDF Export
 // ============================================================
 function exportarPDF(proposta, layoutId, isPro) {
-  const win = window.open("", "_blank");
   const hoje = new Date().toLocaleDateString("pt-BR");
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (mobile) {
+    alert("Para exportar o PDF com melhor qualidade, acesse pelo computador. No celular, use o botão 📋 Copiar para Word e cole em um editor de texto.");
+    return;
+  }
   const PT = {
     escuro:{ accent:"#7a5c14", hBg:"#1a1228", hText:"#f0e8d8", aLight:"#c8a96e" },
     claro: { accent:"#7a5c14", hBg:"#1a1228", hText:"#ffffff",  aLight:"#c8a96e" },
@@ -273,7 +277,7 @@ function exportarPDF(proposta, layoutId, isPro) {
   const t = PT[layoutId] || PT.claro;
   const html = markdownToHtml(proposta, "claro");
 
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Proposta Comercial</title>
+  const htmlStr = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Proposta Comercial</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Georgia,serif;background:#fff;color:#1a1a1a}
@@ -306,7 +310,23 @@ function exportarPDF(proposta, layoutId, isPro) {
     window.onafterprint = function() { window.close(); };
   <\/script>
   </body></html>`);
-  win.document.close();
+  if (mobile) {
+    // Mobile: use blob URL
+    const blob = new Blob([htmlStr], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  } else {
+    // Desktop: open new window and print
+    const win = window.open("", "_blank");
+    win.document.write(htmlStr);
+    win.document.close();
+  }
 }
 
 
@@ -977,6 +997,18 @@ const S = {
 
 if (typeof document !== "undefined") {
   const s = document.createElement("style");
-  s.textContent = `@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0a0f}input::placeholder,textarea::placeholder{color:#383838}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}`;
+  s.textContent = `
+    @keyframes spin{to{transform:rotate(360deg)}}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0a0a0f}
+    input::placeholder,textarea::placeholder{color:#383838}
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:#0a0a0f}
+    ::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+    @media(max-width:600px){
+      table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;font-size:11px}
+      th,td{min-width:80px;padding:6px 8px!important;white-space:nowrap}
+    }
+  `;
   document.head.appendChild(s);
 }
