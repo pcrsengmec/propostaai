@@ -290,12 +290,46 @@ function exportarPDF(proposta, layoutId, isPro) {
     strong{color:#111}
     .sig-line{display:inline-block;border-bottom:1px solid #333;min-width:280px;margin:0 4px}
     ${!isPro?`.wm{position:fixed;bottom:16px;left:0;right:0;text-align:center;font-size:9px;color:#ccc;letter-spacing:2px;text-transform:uppercase}`:""}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:0}}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      @page{margin:20mm 15mm 25mm 15mm}
+      .hdr{margin:0}
+    }
+    @page{
+      @bottom-left{
+        content: "Página " counter(page) " de " counter(pages);
+        font-family: Georgia, serif;
+        font-size: 9px;
+        color: #999;
+        letter-spacing: 1px;
+      }
+    }
+    body{counter-reset:page}
   </style></head><body>
   <div class="hdr"><div class="hdr-title">Proposta Comercial</div><div class="hdr-date">${hoje}</div></div>
   <div class="body">${html}</div>
   ${!isPro?`<div class="wm">Gerado com PropostaAI · Upgrade para PRO e remova esta marca</div>`:""}
-  <script>window.onload=function(){window.print()}<\/script>
+  <script>
+    window.onload = function() {
+      // Inject page numbers via CSS counter (works in Chrome/Edge)
+      var style = document.createElement('style');
+      style.textContent = `
+        @page { margin: 20mm 15mm 25mm 15mm; }
+        html { height: 100%; }
+        .page-number {
+          position: fixed;
+          bottom: 8mm;
+          left: 15mm;
+          font-family: Georgia, serif;
+          font-size: 9px;
+          color: #aaa;
+          letter-spacing: 1px;
+        }
+      `;
+      document.head.appendChild(style);
+      window.print();
+    };
+  <\/script>
   </body></html>`);
   win.document.close();
 }
