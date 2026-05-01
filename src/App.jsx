@@ -591,9 +591,9 @@ ${f.diferenciais ? "9" : "8"}. ASSINATURA`;
                           onClick={()=>setAvaliacao(n)}
                           onMouseEnter={()=>setAvaliacaoHover(n)}
                           onMouseLeave={()=>setAvaliacaoHover(0)}
-                          style={{fontSize:"32px",cursor:"pointer",transition:"transform 0.1s",transform:(avaliacaoHover||avaliacao)>=n?"scale(1.2)":"scale(1)",userSelect:"none"}}
+                          style={{fontSize:"36px",cursor:"pointer",transition:"all 0.15s",transform:(avaliacaoHover||avaliacao)>=n?"scale(1.2)":"scale(1)",userSelect:"none",color:(avaliacaoHover||avaliacao)>=n?"#f5c518":"#555",textShadow:(avaliacaoHover||avaliacao)>=n?"0 0 8px rgba(245,197,24,0.5)":"none"}}
                         >
-                          {(avaliacaoHover||avaliacao) >= n ? "★" : "☆"}
+                          ★
                         </span>
                       ))}
                     </div>
