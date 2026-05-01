@@ -290,7 +290,7 @@ function TelaLogin({ onLogin, loading }) {
           </svg>Entrar com Google</>)}
         </button>
                {/* 🔐 LGPD */}
-                <p style={{
+               <p style={{
                   fontSize:"11px",
                   color:"#555",
                   marginTop:"12px",
@@ -298,18 +298,37 @@ function TelaLogin({ onLogin, loading }) {
                   textAlign:"center"
                 }}>
                   Ao continuar, você concorda com nossos{" "}
+                  
                   <a 
-                    href={CONFIG.TERMOS_LINK} 
-                    target="_blank" 
-                    style={{color:"#c8a96e", textDecoration:"none"}}
+                    href={CONFIG.TERMOS_LINK || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color:"#c8a96e",
+                      textDecoration:"underline",
+                      pointerEvents:"auto",
+                      cursor:"pointer",
+                      position:"relative",
+                      zIndex: 10
+                    }}
                   >
                     Termos de Uso
                   </a>{" "}
+                  
                   e{" "}
+                  
                   <a 
-                    href={CONFIG.PRIVACIDADE_LINK} 
-                    target="_blank" 
-                    style={{color:"#c8a96e", textDecoration:"none"}}
+                    href={CONFIG.PRIVACIDADE_LINK || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color:"#c8a96e",
+                      textDecoration:"underline",
+                      pointerEvents:"auto",
+                      cursor:"pointer",
+                      position:"relative",
+                      zIndex: 10
+                    }}
                   >
                     Política de Privacidade
                   </a>.
