@@ -102,74 +102,82 @@ const useUsage = (user) => {
 // Fields
 // ============================================================
 const fields = [
-  // Seus dados
-  { key: "seuNome", label: "Seu nome / empresa", placeholder: "Ex: João Silva Consultoria", required: true, section: "seus" },
-  { key: "seuCnpj", label: "Seu CNPJ/CPF", placeholder: "Ex: 12.345.678/0001-99", required: false, section: "seus" },
-  { key: "seuContato", label: "Seu telefone e email", placeholder: "Ex: (21) 99999-9999 | joao@email.com", required: false, section: "seus" },
-  // Dados do cliente
-  { key: "clienteNome", label: "Nome do cliente", placeholder: "Ex: Empresa ABC Ltda", required: true, section: "cliente" },
-  { key: "clienteCnpj", label: "CNPJ do cliente", placeholder: "Ex: 98.765.432/0001-11", required: false, section: "cliente" },
-  { key: "clienteContato", label: "Contato do cliente", placeholder: "Ex: Maria Silva | (21) 98888-8888", required: false, section: "cliente" },
-  { key: "clienteEndereco", label: "Endereço do cliente", placeholder: "Ex: Av. Paulista, 1000 - São Paulo/SP", required: false, section: "cliente" },
-  // Proposta
-  { key: "servico", label: "Serviço ou produto", placeholder: "Ex: Desenvolvimento de site institucional", required: true, section: "proposta" },
-  { key: "valor", label: "Valor da proposta", placeholder: "Ex: R$ 5.000,00", required: true, section: "proposta" },
-  { key: "prazo", label: "Prazo de entrega", placeholder: "Ex: 30 dias úteis", required: true, section: "proposta" },
-  { key: "validade", label: "Validade da proposta", placeholder: "Ex: 15 dias", required: false, section: "proposta" },
-  { key: "diferenciais", label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso, garantia de satisfação...", required: false, section: "proposta", textarea: true },
+  { key: "seuNome",        label: "Seu nome / empresa",      placeholder: "Ex: João Silva Consultoria",                section: "seus",     required: true  },
+  { key: "seuCnpj",        label: "Seu CNPJ/CPF",            placeholder: "Ex: 12.345.678/0001-99",                    section: "seus",     required: false },
+  { key: "seuContato",     label: "Seu telefone e email",    placeholder: "Ex: (21) 99999-9999 | joao@email.com",       section: "seus",     required: false },
+  { key: "clienteNome",    label: "Nome do cliente",         placeholder: "Ex: Empresa ABC Ltda",                      section: "cliente",  required: true  },
+  { key: "clienteCnpj",    label: "CNPJ do cliente",         placeholder: "Ex: 98.765.432/0001-11",                    section: "cliente",  required: false },
+  { key: "clienteContato", label: "Contato do cliente",      placeholder: "Ex: Maria Silva | (21) 98888-8888",          section: "cliente",  required: false },
+  { key: "clienteEndereco",label: "Endereço do cliente",     placeholder: "Ex: Av. Paulista, 1000 - São Paulo/SP",      section: "cliente",  required: false },
+  { key: "servico",        label: "Serviço ou produto",      placeholder: "Ex: Desenvolvimento de site institucional",  section: "proposta", required: true  },
+  { key: "valor",          label: "Valor da proposta",       placeholder: "Ex: R$ 5.000,00",                           section: "proposta", required: true  },
+  { key: "prazo",          label: "Prazo de entrega",        placeholder: "Ex: 30 dias úteis",                         section: "proposta", required: true  },
+  { key: "validade",       label: "Validade da proposta",    placeholder: "Ex: 15 dias",                               section: "proposta", required: false },
+  { key: "diferenciais",   label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso, garantia de satisfação...", section: "proposta", required: false, textarea: true },
 ];
 
 // ============================================================
-// Markdown Renderer
+// Markdown → HTML renderer (robusto, sem cortes)
 // ============================================================
 function markdownToHtml(text, themeId) {
   const themes = {
-    escuro: { h2: "#c8a96e", h3: "#f0e8d8", h4: "#b8a070", text: "#d8d0c0", bold: "#f0e8d8", hr: "#2a2a3a", tdBorder: "#2a2a3a", tdBg: "rgba(200,169,110,0.08)", bullet: "#c8a96e" },
-    claro:  { h2: "#7a5c14", h3: "#1a1a1a", h4: "#7a5c14", text: "#333", bold: "#111", hr: "#e0d8c8", tdBorder: "#e0d8c8", tdBg: "#f9f6f0", bullet: "#7a5c14" },
-    azul:   { h2: "#1d4ed8", h3: "#1e3a5f", h4: "#1d4ed8", text: "#334155", bold: "#1e3a5f", hr: "#bfdbfe", tdBorder: "#bfdbfe", tdBg: "#eff6ff", bullet: "#1d4ed8" },
+    escuro: { h2:"#c8a96e", h3:"#f0e8d8", h4:"#b8a070", text:"#d8d0c0", bold:"#f0e8d8", hr:"#2a2a3a", tdBorder:"#3a3a4a", tdHBg:"rgba(200,169,110,0.1)", bullet:"#c8a96e" },
+    claro:  { h2:"#7a5c14", h3:"#1a1a1a", h4:"#7a5c14", text:"#333",    bold:"#111",    hr:"#e0d8c8", tdBorder:"#ddd",    tdHBg:"#f5f0e8",              bullet:"#7a5c14" },
+    azul:   { h2:"#1d4ed8", h3:"#1e3a5f", h4:"#1d4ed8", text:"#334155", bold:"#1e3a5f", hr:"#bfdbfe", tdBorder:"#bfdbfe", tdHBg:"#eff6ff",              bullet:"#1d4ed8" },
   };
   const c = themes[themeId] || themes.escuro;
 
-  const inline = (s) => s
+  const inline = (s) => (s || "")
     .replace(/\*\*(.+?)\*\*/g, `<strong style="color:${c.bold}">$1</strong>`)
     .replace(/\*(.+?)\*/g, `<em>$1</em>`);
 
-  const lines = text.split("\n");
+  // Normalise line endings, split
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   let html = "";
-  let tableRows = [];
+  let tableLines = [];
 
   const flushTable = () => {
-    if (!tableRows.length) return;
+    if (!tableLines.length) return;
+    const rows = tableLines.filter(r => !/^\|[\s\-|]+\|$/.test(r.trim()));
+    if (!rows.length) { tableLines = []; return; }
     html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif">`;
-    let isFirst = true;
-    tableRows.forEach(row => {
-      if (/^\|[-| ]+\|$/.test(row.trim())) return;
-      const cells = row.split("|").map(c => c.trim()).filter(c => c !== "");
+    rows.forEach((row, idx) => {
+      const cells = row.split("|").slice(1, -1).map(c => c.trim());
       if (!cells.length) return;
-      const tag = isFirst ? "th" : "td";
-      html += `<tr>${cells.map(cell => `<${tag} style="padding:10px 14px;border:1px solid ${c.tdBorder};color:${c.text};font-size:13px;text-align:left;${isFirst ? `background:${c.tdBg};font-weight:bold` : "background:transparent"}">${inline(cell)}</${tag}>`).join("")}</tr>`;
-      isFirst = false;
+      const isHeader = idx === 0;
+      const tag = isHeader ? "th" : "td";
+      html += `<tr>${cells.map(cell =>
+        `<${tag} style="padding:9px 13px;border:1px solid ${c.tdBorder};color:${c.text};font-size:13px;text-align:left;${isHeader ? `background:${c.tdHBg};font-weight:bold` : ""}">${inline(cell)}</${tag}>`
+      ).join("")}</tr>`;
     });
     html += `</table>`;
-    tableRows = [];
+    tableLines = [];
   };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (line.startsWith("|")) { tableRows.push(line); continue; }
-    else if (tableRows.length) flushTable();
+    // Table rows — collect until non-table line
+    if (/^\s*\|/.test(line)) {
+      tableLines.push(line);
+      continue;
+    } else if (tableLines.length) {
+      flushTable();
+    }
 
     if (/^---+$/.test(line.trim())) {
       html += `<hr style="border:none;border-top:1px solid ${c.hr};margin:28px 0"/>`;
-    } else if (line.startsWith("#### ")) {
+    } else if (/^#{4} /.test(line)) {
       html += `<h4 style="font-size:13px;color:${c.h4};margin:14px 0 6px;font-weight:bold;font-family:Georgia,serif">${inline(line.slice(5))}</h4>`;
-    } else if (line.startsWith("### ")) {
+    } else if (/^#{3} /.test(line)) {
       html += `<h3 style="font-size:15px;color:${c.h3};margin:20px 0 8px;font-weight:bold;font-family:Georgia,serif">${inline(line.slice(4))}</h3>`;
-    } else if (line.startsWith("## ")) {
+    } else if (/^#{2} /.test(line)) {
       html += `<h2 style="font-size:12px;color:${c.h2};letter-spacing:2px;text-transform:uppercase;margin:32px 0 10px;font-weight:normal;font-family:Georgia,serif;border-bottom:1px solid ${c.hr};padding-bottom:6px">${inline(line.slice(3))}</h2>`;
-    } else if (line.startsWith("# ")) {
+    } else if (/^# /.test(line)) {
       html += `<h1 style="font-size:18px;color:${c.h3};margin:0 0 20px;font-weight:normal;font-family:Georgia,serif">${inline(line.slice(2))}</h1>`;
+    } else if (/^\d+\. /.test(line)) {
+      const txt = line.replace(/^\d+\.\s*/, "");
+      html += `<div style="display:flex;gap:8px;margin:5px 0;font-family:Georgia,serif"><span style="color:${c.bullet};flex-shrink:0;min-width:18px">${line.match(/^\d+/)[0]}.</span><span style="color:${c.text};font-size:13px;line-height:1.7">${inline(txt)}</span></div>`;
     } else if (/^[-*] /.test(line)) {
       html += `<div style="display:flex;gap:8px;margin:5px 0;font-family:Georgia,serif"><span style="color:${c.bullet};flex-shrink:0;margin-top:1px">✓</span><span style="color:${c.text};font-size:13px;line-height:1.7">${inline(line.slice(2))}</span></div>`;
     } else if (line.trim() === "") {
@@ -178,8 +186,33 @@ function markdownToHtml(text, themeId) {
       html += `<p style="margin:5px 0;color:${c.text};font-family:Georgia,serif;font-size:13px;line-height:1.8">${inline(line)}</p>`;
     }
   }
-  if (tableRows.length) flushTable();
+  if (tableLines.length) flushTable();
   return html;
+}
+
+// ============================================================
+// Copy to clipboard as HTML (Word-compatible)
+// ============================================================
+async function copiarParaWord(proposta, layoutId) {
+  const htmlContent = markdownToHtml(proposta, "claro");
+  const fullHtml = `
+    <html><body style="font-family:Georgia,serif;color:#1a1a1a;max-width:800px;margin:0 auto;padding:20px">
+      <h1 style="font-size:20px;font-weight:normal;color:#1a1a1a;margin-bottom:24px">Proposta Comercial</h1>
+      ${htmlContent}
+    </body></html>`;
+
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const blob = new Blob([fullHtml], { type: "text/html" });
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": blob })]);
+      return true;
+    }
+  } catch (e) {
+    // Fallback: plain text
+  }
+  // Fallback plain text
+  await navigator.clipboard.writeText(proposta);
+  return false;
 }
 
 // ============================================================
@@ -188,19 +221,19 @@ function markdownToHtml(text, themeId) {
 const LAYOUTS = [
   {
     id: "escuro", nome: "Elegante Escuro",
-    bg: "#0d0d14", boxBg: "rgba(255,255,255,0.02)", boxBorder: "#2a2a3a",
+    bg: "#0d0d14", boxBorder: "#2a2a3a",
     headerBg: "linear-gradient(135deg, #1a1228 0%, #0d0d14 100%)",
     headerAccent: "#c8a96e", headerText: "#f0e8d8",
   },
   {
     id: "claro", nome: "Profissional Claro",
-    bg: "#f7f4ef", boxBg: "#ffffff", boxBorder: "#e0d8c8",
+    bg: "#f7f4ef", boxBorder: "#e0d8c8",
     headerBg: "linear-gradient(135deg, #1a1228 0%, #2d2040 100%)",
     headerAccent: "#c8a96e", headerText: "#ffffff",
   },
   {
     id: "azul", nome: "Corporativo Azul",
-    bg: "#f0f4ff", boxBg: "#ffffff", boxBorder: "#bfdbfe",
+    bg: "#f0f4ff", boxBorder: "#bfdbfe",
     headerBg: "linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%)",
     headerAccent: "#60a5fa", headerText: "#ffffff",
   },
@@ -212,11 +245,10 @@ const LAYOUTS = [
 function exportarPDF(proposta, layoutId, isPro) {
   const win = window.open("", "_blank");
   const hoje = new Date().toLocaleDateString("pt-BR");
-
   const pdfThemes = {
     escuro: { accent: "#7a5c14", headerBg: "#1a1228", headerText: "#f0e8d8", accentLight: "#c8a96e" },
-    claro:  { accent: "#7a5c14", headerBg: "#1a1228", headerText: "#ffffff", accentLight: "#c8a96e" },
-    azul:   { accent: "#1e3a5f", headerBg: "#1e3a5f", headerText: "#ffffff", accentLight: "#60a5fa" },
+    claro:  { accent: "#7a5c14", headerBg: "#1a1228", headerText: "#ffffff",  accentLight: "#c8a96e" },
+    azul:   { accent: "#1e3a5f", headerBg: "#1e3a5f", headerText: "#ffffff",  accentLight: "#60a5fa" },
   };
   const t = pdfThemes[layoutId] || pdfThemes.claro;
   const htmlContent = markdownToHtml(proposta, "claro");
@@ -226,9 +258,9 @@ function exportarPDF(proposta, layoutId, isPro) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Georgia, serif; background: #fff; color: #1a1a1a; }
-    .header { background: ${t.headerBg}; color: ${t.headerText}; padding: 40px 60px; }
-    .header-logo { font-size: 9px; letter-spacing: 4px; color: ${t.accentLight}; text-transform: uppercase; margin-bottom: 6px; }
+    .header { background: ${t.headerBg}; color: ${t.headerText}; padding: 36px 60px; }
     .header-title { font-size: 22px; font-weight: normal; }
+    .header-date { font-size: 11px; opacity: 0.6; margin-top: 6px; }
     .content { max-width: 800px; margin: 0 auto; padding: 40px 60px 60px; }
     h1 { font-size: 17px; color: #1a1a1a; margin-bottom: 20px; font-weight: normal; }
     h2 { font-size: 11px; color: ${t.accent}; letter-spacing: 2px; text-transform: uppercase; margin: 28px 0 8px; font-weight: normal; border-bottom: 1px solid #eee; padding-bottom: 5px; }
@@ -239,23 +271,18 @@ function exportarPDF(proposta, layoutId, isPro) {
     table { width: 100%; border-collapse: collapse; margin: 14px 0; }
     th { padding: 9px 12px; border: 1px solid #ddd; font-size: 12px; background: #f5f5f0; text-align: left; font-weight: bold; }
     td { padding: 8px 12px; border: 1px solid #ddd; font-size: 12px; }
-    .check-item { display: flex; gap: 8px; margin: 4px 0; font-size: 13px; color: #333; line-height: 1.7; }
-    .check-dot { color: ${t.accent}; flex-shrink: 0; }
     strong { color: #111; }
-    ${isPro ? "" : `.watermark { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 9px; color: #bbb; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; }`}
-    @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      @page { margin: 0; }
-      .header { margin: 0; }
-    }
+    div[style*="display:flex"] { display: flex; gap: 8px; margin: 4px 0; font-size: 13px; color: #333; line-height: 1.7; }
+    ${!isPro ? `.watermark { position: fixed; bottom: 16px; left: 0; right: 0; text-align: center; font-size: 9px; color: #ccc; letter-spacing: 2px; text-transform: uppercase; font-family: Georgia, serif; }` : ""}
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { margin: 0; } }
   </style>
   </head><body>
   <div class="header">
-    <div class="header-logo">PropostaAI</div>
     <div class="header-title">Proposta Comercial</div>
+    <div class="header-date">${hoje}</div>
   </div>
   <div class="content">${htmlContent}</div>
-  ${isPro ? "" : `<div class="watermark">Gerado com PropostaAI · Upgrade para PRO e remova esta marca</div>`}
+  ${!isPro ? `<div class="watermark">Gerado com PropostaAI · Upgrade para PRO e remova esta marca</div>` : ""}
   <script>window.onload=function(){window.print();}<\/script>
   </body></html>`);
   win.document.close();
@@ -306,7 +333,7 @@ function TelaPaywall({ onAssinar }) {
           Você usou suas <em style={{ color: "#c8a96e" }}>3 propostas grátis</em>
         </h2>
         <p style={{ color: "#888", fontSize: "14px", marginBottom: "32px", lineHeight: 1.7 }}>
-          Assine o plano Pro e gere propostas ilimitadas, sem marca d'água e com todos os layouts.
+          Assine o plano Pro e gere propostas ilimitadas, sem marca d'água.
         </p>
         <div style={css.planoCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -337,7 +364,7 @@ function TelaApp({ user, usage, onLogout }) {
   const [step, setStep] = useState("dados");
   const [proposta, setProposta] = useState("");
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copyMsg, setCopyMsg] = useState("");
   const [layoutIdx, setLayoutIdx] = useState(0);
   const layout = LAYOUTS[layoutIdx];
   const hoje = new Date().toLocaleDateString("pt-BR");
@@ -359,15 +386,16 @@ function TelaApp({ user, usage, onLogout }) {
       f.clienteEndereco ? `- Endereço: ${f.clienteEndereco}` : null,
     ].filter(Boolean).join("\n");
 
-    return `Você é um especialista em vendas B2B brasileiro. Gere uma proposta comercial profissional, persuasiva e completa em português do Brasil.
+    return `Você é um especialista em vendas B2B brasileiro. Gere uma proposta comercial profissional e completa em português do Brasil.
 
-REGRAS IMPORTANTES:
-1. Use ## para seções principais, ### para subseções, #### para itens numerados, - para listas com bullet
+REGRAS OBRIGATÓRIAS:
+1. Use ## para seções principais, ### para subseções, #### para itens, - ou 1. para listas
 2. NUNCA use placeholders como [Inserir...], [Data atual], [Não informado] ou similares
-3. Se um dado não foi fornecido, simplesmente OMITA aquele campo da proposta — não deixe vazio
-4. Preencha todos os campos com os dados reais fornecidos abaixo
-5. Use **negrito** para destaques importantes
-6. Separe as seções com ---
+3. Se um dado não foi fornecido, OMITA aquele campo completamente — não deixe vazio nem com colchetes
+4. Preencha TODOS os campos de IDENTIFICAÇÃO com os dados reais abaixo
+5. Use **negrito** para destaques
+6. Separe seções com ---
+7. Gere a proposta COMPLETA até o final, incluindo PRÓXIMOS PASSOS e ASSINATURA
 
 DADOS DO FORNECEDOR:
 ${linhasSeus}
@@ -375,7 +403,7 @@ ${linhasSeus}
 DADOS DO CLIENTE:
 ${linhasCliente}
 
-DETALHES DA PROPOSTA:
+DETALHES:
 - Serviço/Produto: ${f.servico}
 - Valor: ${f.valor}
 - Prazo de entrega: ${f.prazo}
@@ -383,16 +411,15 @@ DETALHES DA PROPOSTA:
 - Data: ${hoje}
 ${f.diferenciais ? `- Diferenciais: ${f.diferenciais}` : ""}
 
-SEÇÕES OBRIGATÓRIAS (use ##):
-IDENTIFICAÇÃO → liste todos os dados reais do fornecedor e cliente fornecidos acima
-APRESENTAÇÃO → texto persuasivo personalizado
-ENTENDIMENTO DA NECESSIDADE → baseado no serviço descrito
-ESCOPO DETALHADO → com ### e #### para subitens detalhados
-INVESTIMENTO E FORMAS DE PAGAMENTO → tabela com valor + 3 opções de pagamento
-PRAZO E CRONOGRAMA → tabela com fases e duração
-${f.diferenciais ? "NOSSOS DIFERENCIAIS → baseado nos diferenciais informados" : ""}
-PRÓXIMOS PASSOS → ação clara para fechar negócio
-ASSINATURA → espaço para assinaturas`;
+SEÇÕES OBRIGATÓRIAS (todas com ##):
+1. IDENTIFICAÇÃO — todos dados reais do fornecedor e cliente
+2. APRESENTAÇÃO — texto persuasivo personalizado
+3. ENTENDIMENTO DA NECESSIDADE — baseado no serviço
+4. ESCOPO DETALHADO — com ### e #### detalhados
+5. INVESTIMENTO E FORMAS DE PAGAMENTO — tabela + 3 opções de pagamento
+6. PRAZO E CRONOGRAMA — tabela com fases${f.diferenciais ? "\n7. NOSSOS DIFERENCIAIS" : ""}
+${f.diferenciais ? "8" : "7"}. PRÓXIMOS PASSOS
+${f.diferenciais ? "9" : "8"}. ASSINATURA`;
   };
 
   const gerar = async () => {
@@ -417,10 +444,15 @@ ASSINATURA → espaço para assinaturas`;
     }
   };
 
-  const copiar = () => {
-    navigator.clipboard.writeText(proposta);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async (type) => {
+    if (type === "word") {
+      const success = await copiarParaWord(proposta, layout.id);
+      setCopyMsg(success ? "✓ Copiado com formatação!" : "✓ Copiado (texto simples)");
+    } else {
+      await navigator.clipboard.writeText(proposta);
+      setCopyMsg("✓ Texto copiado!");
+    }
+    setTimeout(() => setCopyMsg(""), 2500);
   };
 
   const proximoLayout = () => setLayoutIdx((layoutIdx + 1) % LAYOUTS.length);
@@ -436,8 +468,6 @@ ASSINATURA → espaço para assinaturas`;
     );
   }
 
-  const sectionsByKey = { seus: fields.filter(f => f.section === "seus"), cliente: fields.filter(f => f.section === "cliente"), proposta: fields.filter(f => f.section === "proposta") };
-
   const renderField = (f) => (
     <div key={f.key} style={{ gridColumn: ["seuNome","clienteNome","clienteEndereco","servico","diferenciais"].includes(f.key) ? "1/-1" : "auto" }}>
       <label style={css.label}>{f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}</label>
@@ -447,6 +477,10 @@ ASSINATURA → espaço para assinaturas`;
       }
     </div>
   );
+
+  const seuFields     = fields.filter(f => f.section === "seus");
+  const clienteFields = fields.filter(f => f.section === "cliente");
+  const propostaFields= fields.filter(f => f.section === "proposta");
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f", fontFamily: "Georgia, serif" }}>
@@ -479,18 +513,18 @@ ASSINATURA → espaço para assinaturas`;
             <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>Preencha os dados e a IA cria uma proposta profissional para você.</p>
 
             <div style={css.sectionLabel}>Seus dados</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-              {sectionsByKey.seus.map(renderField)}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "28px" }}>
+              {seuFields.map(renderField)}
             </div>
 
             <div style={css.sectionLabel}>Dados do cliente</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-              {sectionsByKey.cliente.map(renderField)}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "28px" }}>
+              {clienteFields.map(renderField)}
             </div>
 
             <div style={css.sectionLabel}>Detalhes da proposta</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              {sectionsByKey.proposta.map(renderField)}
+              {propostaFields.map(renderField)}
             </div>
 
             {error && <div style={{ marginTop: "12px", color: "#e05555", fontSize: "13px" }}>{error}</div>}
@@ -512,17 +546,15 @@ ASSINATURA → espaço para assinaturas`;
         {/* PROPOSTA */}
         {step === "proposta" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
               <div>
                 <div style={{ fontSize: "11px", letterSpacing: "2px", color: "#c8a96e", textTransform: "uppercase", marginBottom: "4px" }}>✓ Gerada com sucesso</div>
                 <h2 style={{ fontSize: "24px", fontWeight: "normal", color: "#f0e8d8", margin: 0 }}>Sua proposta está pronta</h2>
               </div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                <button onClick={proximoLayout} title="Trocar layout" style={{ ...css.btnOutline, fontSize: "11px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  🎨 {layout.nome}
-                </button>
-                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>
-                  {copied ? "✓ Copiado!" : "Copiar texto"}
+                <button onClick={proximoLayout} style={{ ...css.btnOutline, fontSize: "11px" }}>🎨 {layout.nome}</button>
+                <button onClick={() => handleCopy("word")} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>
+                  {copyMsg || "📋 Copiar para Word"}
                 </button>
                 <button onClick={() => exportarPDF(proposta, layout.id, usage.subscribed)} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto", background: "#1a5c1a" }}>
                   📄 Exportar PDF
@@ -531,20 +563,20 @@ ASSINATURA → espaço para assinaturas`;
               </div>
             </div>
 
-            {/* Aviso de marca d'água para gratuitos */}
+            {/* Aviso marca d'água */}
             {!usage.subscribed && (
               <div style={{ marginBottom: "16px", padding: "12px 16px", background: "rgba(200,169,110,0.08)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: "6px", fontSize: "12px", color: "#c8a96e", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                <span>📄 O PDF gerado inclui marca d'água. <strong>Upgrade para PRO</strong> e remova.</span>
+                <span>📄 PDF gerado com marca d'água. <strong>Upgrade para PRO</strong> e remova.</span>
                 <button onClick={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")} style={{ background: "#c8a96e", color: "#0a0a0f", border: "none", borderRadius: "4px", padding: "6px 14px", fontSize: "11px", cursor: "pointer", fontWeight: "bold", letterSpacing: "1px", textTransform: "uppercase", fontFamily: "Georgia, serif", whiteSpace: "nowrap" }}>
                   Assinar PRO
                 </button>
               </div>
             )}
 
-            {/* Documento com layout */}
+            {/* Documento */}
             <div style={{ background: layout.bg, border: `1px solid ${layout.boxBorder}`, borderRadius: "8px", overflow: "hidden", boxShadow: "0 4px 32px rgba(0,0,0,0.4)" }}>
-              <div style={{ background: layout.headerBg, padding: "32px 40px", borderBottom: `2px solid ${layout.headerAccent}` }}>
-                <div style={{ fontSize: "9px", letterSpacing: "4px", color: layout.headerAccent, textTransform: "uppercase", marginBottom: "6px" }}>PropostaAI</div>
+              {/* Header limpo — sem marca PropostaAI */}
+              <div style={{ background: layout.headerBg, padding: "28px 40px", borderBottom: `2px solid ${layout.headerAccent}` }}>
                 <div style={{ fontSize: "20px", fontWeight: "normal", color: layout.headerText, fontFamily: "Georgia, serif" }}>Proposta Comercial</div>
                 <div style={{ fontSize: "11px", color: layout.headerText, opacity: 0.5, marginTop: "4px" }}>{hoje}</div>
               </div>
@@ -552,7 +584,7 @@ ASSINATURA → espaço para assinaturas`;
             </div>
 
             <div style={css.dica}>
-              💡 Use 🎨 para trocar o layout antes de exportar o PDF.{!usage.subscribed && " PRO remove a marca d'água do PDF."}
+              💡 Use 🎨 para trocar o layout · "Copiar para Word" preserva a formatação · PRO remove marca d'água do PDF.
             </div>
           </div>
         )}
