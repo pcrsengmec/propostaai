@@ -8,7 +8,7 @@ import { getFirestore, collection, query, where, getDocs } from "firebase/firest
 // ============================================================
 const CONFIG = {
   FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
-  FIREBASE_AUTH_DOMAIN: "fecharproposta.com.br",
+  FIREBASE_AUTH_DOMAIN: "propostaai.firebaseapp.com",
   FIREBASE_PROJECT_ID: "propostaai",
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
@@ -21,7 +21,7 @@ const CONFIG = {
 // ============================================================
 const firebaseConfig = {
   apiKey: CONFIG.FIREBASE_API_KEY,
-  authDomain: "fecharproposta.com.br",
+  authDomain: CONFIG.FIREBASE_AUTH_DOMAIN,
   projectId: CONFIG.FIREBASE_PROJECT_ID,
 };
 
