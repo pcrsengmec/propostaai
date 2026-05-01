@@ -289,6 +289,31 @@ function TelaLogin({ onLogin, loading }) {
             <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
           </svg>Entrar com Google</>)}
         </button>
+        {/* 🔐 LGPD */}
+<p style={{
+  fontSize:"11px",
+  color:"#555",
+  marginTop:"12px",
+  lineHeight:1.5,
+  textAlign:"center"
+}}>
+  Ao continuar, você concorda com nossos{" "}
+  <a 
+    href={CONFIG.TERMOS_LINK} 
+    target="_blank" 
+    style={{color:"#c8a96e", textDecoration:"none"}}
+  >
+    Termos de Uso
+  </a>{" "}
+  e{" "}
+  <a 
+    href={CONFIG.PRIVACIDADE_LINK} 
+    target="_blank" 
+    style={{color:"#c8a96e", textDecoration:"none"}}
+  >
+    Política de Privacidade
+  </a>.
+</p>
         <p style={{color:"#444",fontSize:"11px",marginTop:"16px",textAlign:"center"}}>Sem cartão. Sem compromisso. Cancele quando quiser.</p>
       </div>
     </div>
