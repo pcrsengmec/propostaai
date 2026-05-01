@@ -273,6 +273,7 @@ function exportarPDF(proposta, layoutId, isPro) {
 // Tela Login
 // ============================================================
 function TelaLogin({ onLogin, loading }) {
+  const [aceitou, setAceitou] = useState(false);
   return (
     <div style={S.loginWrap}>
       <div style={S.loginCard}>
@@ -283,8 +284,15 @@ function TelaLogin({ onLogin, loading }) {
           {["✦ Proposta completa em &lt;30 segundos","✦ Tom profissional e persuasivo","✦ 3 propostas grátis para testar"].map((b,i)=>(
             <div key={i} style={S.beneficioItem} dangerouslySetInnerHTML={{__html:b}}/>
           ))}
-        </div>
-        <button onClick={onLogin} disabled={loading} style={S.btnGoogle}>
+        <button
+        onClick={onLogin}
+        disabled={loading || !aceitou}
+        style={{
+        ...S.btnGoogle,
+        opacity: aceitou ? 1 : 0.5,
+        cursor: aceitou ? "pointer" : "not-allowed"
+         }}
+          >
           {loading ? "Entrando..." : (<><svg width="18" height="18" viewBox="0 0 18 18" style={{marginRight:10}}>
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
             <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
@@ -293,49 +301,25 @@ function TelaLogin({ onLogin, loading }) {
           </svg>Entrar com Google</>)}
         </button>
                {/* 🔐 LGPD */}
-               <p style={{
-                  fontSize:"11px",
-                  color:"#555",
-                  marginTop:"12px",
-                  lineHeight:1.5,
-                  textAlign:"center"
-                }}>
-                  Ao continuar, você concorda com nossos{" "}
-                  
-                  <a 
-                    href={CONFIG.TERMOS_LINK || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color:"#c8a96e",
-                      textDecoration:"underline",
-                      pointerEvents:"auto",
-                      cursor:"pointer",
-                      position:"relative",
-                      zIndex: 10
-                    }}
-                  >
+            {/* 👇 COLE AQUI */}
+            <div style={{marginTop:"12px", textAlign:"center"}}>
+              <label style={{fontSize:"12px", color:"#888"}}>
+                <input
+                  type="checkbox"
+                  checked={aceitou}
+                  onChange={(e) => setAceitou(e.target.checked)}
+                  style={{marginRight:"6px"}}
+                />
+                  Eu li e aceito os{" "}
+                  <a href="/termos.html" target="_blank" rel="noopener noreferrer">
                     Termos de Uso
                   </a>{" "}
-                  
                   e{" "}
-                  
-                  <a 
-                    href={CONFIG.PRIVACIDADE_LINK || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color:"#c8a96e",
-                      textDecoration:"underline",
-                      pointerEvents:"auto",
-                      cursor:"pointer",
-                      position:"relative",
-                      zIndex: 10
-                    }}
-                  >
+                  <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">
                     Política de Privacidade
-                  </a>.
-                </p>
+                  </a>           
+              </label>
+            </div>
         <p style={{color:"#444",fontSize:"11px",marginTop:"16px",textAlign:"center"}}>Sem cartão. Sem compromisso. Cancele quando quiser.</p>
       </div>
     </div>
