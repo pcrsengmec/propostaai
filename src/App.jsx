@@ -15,8 +15,8 @@ const CONFIG = {
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
    // 🔐 LGPD
-  TERMOS_LINK: "https://seusite.com/termos",
-  PRIVACIDADE_LINK: "https://seusite.com/privacidade",
+  TERMOS_LINK: "/termos.html",
+  PRIVACIDADE_LINK: "/privacidade.html",
 };
 
 const firebaseConfig = {
