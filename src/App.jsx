@@ -159,7 +159,9 @@ function markdownToHtml(text, themeId) {
   const c = T[themeId] || T.escuro;
   const inline = (s) => (s||"")
     .replace(/\*\*(.+?)\*\*/g, `<strong style="color:${c.bold}">$1</strong>`)
-    .replace(/\*(.+?)\*/g, `<em>$1</em>`);
+    .replace(/\*(.+?)\*/g, `<em>$1</em>`)
+    .replace(/\\_/g, "_")
+    .replace(/_{3,}/g, '<span style="display:inline-block;border-bottom:1px solid currentColor;min-width:180px;margin:0 4px">&nbsp;</span>');
 
   // Strip leading #### from a string (when IA mixes bullet + heading)
   const stripHashes = (s) => s.replace(/^#{1,4}\s*/, "");
