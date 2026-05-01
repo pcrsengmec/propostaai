@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 
 // ============================================================
 // CONFIGURAÇÃO — substitua com suas chaves reais
@@ -12,45 +15,104 @@ const CONFIG = {
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
 };
-// ============================================================
 
-// ---- Simulação de Auth (para demonstração sem Firebase real) ----
+// ============================================================
+// Firebase init
+// ============================================================
+const firebaseConfig = {
+  apiKey: CONFIG.FIREBASE_API_KEY,
+  authDomain: CONFIG.FIREBASE_AUTH_DOMAIN,
+  projectId: CONFIG.FIREBASE_PROJECT_ID,
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ============================================================
+// Hook de Auth (Firebase real)
+// ============================================================
 const useAuth = () => {
   const [user, setUser] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          name: firebaseUser.displayName || firebaseUser.email,
+          email: firebaseUser.email,
+          photo: firebaseUser.photoURL,
+        });
+      } else {
+        setUser(null);
+      }
+      setLoadingAuth(false);
+    });
+    return unsub;
+  }, []);
 
   const loginGoogle = async () => {
     setLoadingAuth(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setUser({ name: "Usuário Demo", email: "demo@email.com", photo: null });
-    setLoadingAuth(false);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      console.error(e);
+      setLoadingAuth(false);
+    }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => signOut(auth);
+
   return { user, loadingAuth, loginGoogle, logout };
 };
 
-// ---- Hook de uso/assinatura ----
+// ============================================================
+// Hook de uso/assinatura — CORRIGIDO: busca no Firestore
+// ============================================================
 const useUsage = (user) => {
   const key = user ? `usage_${user.email}` : null;
-  const subKey = user ? `sub_${user.email}` : null;
 
   const getCount = () => {
     if (!key) return 0;
     return parseInt(localStorage.getItem(key) || "0");
   };
 
-  const getSubscribed = () => {
-    if (!subKey) return false;
-    return localStorage.getItem(subKey) === "true";
-  };
-
   const [count, setCount] = useState(getCount);
-  const [subscribed, setSubscribed] = useState(getSubscribed);
+  const [subscribed, setSubscribed] = useState(false);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
 
   useEffect(() => {
     setCount(getCount());
-    setSubscribed(getSubscribed());
+    setSubscribed(false);
+
+    if (!user) return;
+
+    // Busca a assinatura no Firestore
+    const checkSubscription = async () => {
+      setLoadingSubscription(true);
+      try {
+        const q = query(
+          collection(db, "assinaturas"),
+          where("email", "==", user.email)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const data = snap.docs[0].data();
+          setSubscribed(data.plano === "pro");
+        } else {
+          setSubscribed(false);
+        }
+      } catch (e) {
+        console.error("Erro ao verificar assinatura:", e);
+        setSubscribed(false);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+
+    checkSubscription();
   }, [user]);
 
   const increment = () => {
@@ -59,15 +121,10 @@ const useUsage = (user) => {
     setCount(next);
   };
 
-  const ativarDemo = () => {
-    localStorage.setItem(subKey, "true");
-    setSubscribed(true);
-  };
-
   const remaining = subscribed ? Infinity : Math.max(0, CONFIG.LIMITE_GRATUITO - count);
   const canGenerate = subscribed || count < CONFIG.LIMITE_GRATUITO;
 
-  return { count, subscribed, remaining, canGenerate, increment, ativarDemo };
+  return { count, subscribed, remaining, canGenerate, increment, loadingSubscription };
 };
 
 // ---- Campos do formulário ----
@@ -191,7 +248,7 @@ function TelaPaywall({ user, onAssinar }) {
 
 function TelaApp({ user, usage, onLogout }) {
   const [form, setForm] = useState({});
-  const [step, setStep] = useState("dados"); // dados | gerando | proposta
+  const [step, setStep] = useState("dados");
   const [proposta, setProposta] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -347,6 +404,18 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
     win.document.close();
   };
 
+  // Tela de carregamento enquanto verifica assinatura
+  if (usage.loadingSubscription) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", fontFamily: "Georgia, serif" }}>
+          <div style={css.spinner} />
+          <p style={{ color: "#555", marginTop: "16px", fontSize: "13px" }}>Verificando assinatura...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
       {/* Topbar */}
@@ -460,7 +529,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
               </div>
             </div>
 
-            {/* Proposta renderizada com markdown */}
             <div
               style={css.propostaBox}
               dangerouslySetInnerHTML={renderProposta(proposta)}
@@ -485,9 +553,22 @@ export default function App() {
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
-    if (user && !usage.canGenerate) setShowPaywall(true);
-    else setShowPaywall(false);
-  }, [usage.canGenerate, user]);
+    if (user && !usage.loadingSubscription && !usage.canGenerate) {
+      setShowPaywall(true);
+    } else {
+      setShowPaywall(false);
+    }
+  }, [usage.canGenerate, usage.loadingSubscription, user]);
+
+  if (loadingAuth) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", fontFamily: "Georgia, serif" }}>
+          <div style={css.spinner} />
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return <TelaLogin onLogin={loginGoogle} loading={loadingAuth} />;
 
@@ -581,7 +662,6 @@ const css = {
     cursor: "pointer",
     fontFamily: "'Georgia', serif",
     letterSpacing: "1px",
-    transition: "border-color 0.2s, color 0.2s",
   },
   label: {
     display: "block", fontSize: "10px", letterSpacing: "2px",
@@ -642,7 +722,6 @@ if (typeof document !== "undefined") {
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
-    .btn-gerenciar:hover { border-color: #c8a96e !important; color: #c8a96e !important; }
   `;
   document.head.appendChild(s);
 }
