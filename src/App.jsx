@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 
 // ============================================================
-// CONFIGURAÇÃO — substitua com suas chaves reais
+// CONFIGURAÇÃO
 // ============================================================
 const CONFIG = {
   FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
@@ -30,13 +30,28 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // ============================================================
-// Hook de Auth (Firebase real)
+// Hook de Auth com signInWithRedirect
 // ============================================================
 const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
+    // Captura o resultado do redirect ao voltar do Google
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          const u = result.user;
+          setUser({
+            name: u.displayName || u.email,
+            email: u.email,
+            photo: u.photoURL,
+          });
+        }
+      })
+      .catch((e) => console.error("Redirect error:", e));
+
+    // Observa mudanças de auth
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -49,17 +64,16 @@ const useAuth = () => {
       }
       setLoadingAuth(false);
     });
+
     return unsub;
   }, []);
 
   const loginGoogle = async () => {
-    setLoadingAuth(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithRedirect(auth, provider);
     } catch (e) {
-      console.error(e);
-      setLoadingAuth(false);
+      console.error("Login error:", e);
     }
   };
 
@@ -69,7 +83,7 @@ const useAuth = () => {
 };
 
 // ============================================================
-// Hook de uso/assinatura — CORRIGIDO: busca no Firestore
+// Hook de uso/assinatura — busca no Firestore
 // ============================================================
 const useUsage = (user) => {
   const key = user ? `usage_${user.email}` : null;
@@ -89,7 +103,6 @@ const useUsage = (user) => {
 
     if (!user) return;
 
-    // Busca a assinatura no Firestore
     const checkSubscription = async () => {
       setLoadingSubscription(true);
       try {
@@ -305,80 +318,18 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
         <title>Proposta Comercial</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-            font-family: Georgia, serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 60px 60px;
-            color: #1a1a1a;
-            line-height: 1.8;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 48px;
-            padding-bottom: 24px;
-            border-bottom: 2px solid #c8a96e;
-          }
-          .logo {
-            font-size: 11px;
-            letter-spacing: 4px;
-            color: #c8a96e;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-          }
-          .titulo {
-            font-size: 22px;
-            font-weight: normal;
-            color: #1a1a1a;
-            letter-spacing: -0.5px;
-          }
-          h2 {
-            font-size: 13px;
-            color: #c8a96e;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin: 32px 0 10px;
-            font-weight: normal;
-          }
-          h3 {
-            font-size: 14px;
-            color: #1a1a1a;
-            margin: 20px 0 8px;
-            font-weight: bold;
-          }
-          hr {
-            border: none;
-            border-top: 1px solid #ddd;
-            margin: 24px 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-          }
-          td {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            font-size: 13px;
-          }
-          .proposta {
-            font-size: 14px;
-            line-height: 1.9;
-            color: #222;
-          }
-          .footer {
-            margin-top: 60px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-          }
-          @media print {
-            body { padding: 40px; }
-          }
+          body { font-family: Georgia, serif; max-width: 800px; margin: 0 auto; padding: 60px; color: #1a1a1a; line-height: 1.8; }
+          .header { text-align: center; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 2px solid #c8a96e; }
+          .logo { font-size: 11px; letter-spacing: 4px; color: #c8a96e; text-transform: uppercase; margin-bottom: 8px; }
+          .titulo { font-size: 22px; font-weight: normal; color: #1a1a1a; }
+          h2 { font-size: 13px; color: #c8a96e; letter-spacing: 2px; text-transform: uppercase; margin: 32px 0 10px; font-weight: normal; }
+          h3 { font-size: 14px; color: #1a1a1a; margin: 20px 0 8px; font-weight: bold; }
+          hr { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+          td { padding: 8px 12px; border: 1px solid #ddd; font-size: 13px; }
+          .proposta { font-size: 14px; line-height: 1.9; color: #222; }
+          .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 10px; color: #999; letter-spacing: 2px; text-transform: uppercase; }
+          @media print { body { padding: 40px; } }
         </style>
       </head>
       <body>
@@ -387,9 +338,7 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
           <div class="titulo">Proposta Comercial</div>
         </div>
         <div class="proposta">${proposta
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/^---$/gm, '<hr/>')
           .replace(/^## (.+)$/gm, '<h2>$1</h2>')
           .replace(/^### (.+)$/gm, '<h3>$1</h3>')
@@ -404,7 +353,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
     win.document.close();
   };
 
-  // Tela de carregamento enquanto verifica assinatura
   if (usage.loadingSubscription) {
     return (
       <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -418,7 +366,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
-      {/* Topbar */}
       <div style={css.topbar}>
         <div>
           <span style={{ fontSize: "11px", letterSpacing: "3px", color: "#c8a96e", textTransform: "uppercase" }}>PropostaAI</span>
@@ -431,19 +378,14 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
               </span> proposta{usage.remaining !== 1 ? "s" : ""} restante{usage.remaining !== 1 ? "s" : ""}
             </div>
           )}
-
           {usage.subscribed && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
-              <button
-                onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")}
-                style={css.btnGerenciar}
-              >
+              <button onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")} style={css.btnGerenciar}>
                 Gerenciar assinatura
               </button>
             </div>
           )}
-
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={css.avatar}>{user.name[0]}</div>
             <button onClick={onLogout} style={css.btnSair}>Sair</button>
@@ -452,7 +394,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
       </div>
 
       <div style={{ maxWidth: "700px", margin: "0 auto", padding: "48px 24px" }}>
-
         {step === "dados" && (
           <div>
             <h2 style={{ fontSize: "28px", fontWeight: "normal", color: "#f0e8d8", marginBottom: "8px", letterSpacing: "-0.5px" }}>
@@ -461,7 +402,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
             <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>
               Preencha os dados e a IA cria uma proposta profissional para você.
             </p>
-
             <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
               {fields.map((f) => (
                 <div key={f.key}>
@@ -489,7 +429,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
                 </div>
               ))}
             </div>
-
             {error && <div style={{ marginTop: "12px", color: "#e05555", fontSize: "13px" }}>{error}</div>}
             <button
               onClick={gerar}
@@ -528,12 +467,7 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
                 </button>
               </div>
             </div>
-
-            <div
-              style={css.propostaBox}
-              dangerouslySetInnerHTML={renderProposta(proposta)}
-            />
-
+            <div style={css.propostaBox} dangerouslySetInnerHTML={renderProposta(proposta)} />
             <div style={css.dica}>
               💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.
             </div>
@@ -563,9 +497,7 @@ export default function App() {
   if (loadingAuth) {
     return (
       <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", fontFamily: "Georgia, serif" }}>
-          <div style={css.spinner} />
-        </div>
+        <div style={css.spinner} />
       </div>
     );
   }
@@ -587,130 +519,32 @@ export default function App() {
 //  ESTILOS
 // ================================================================
 const css = {
-  loginWrap: {
-    minHeight: "100vh", background: "#0a0a0f",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "24px", fontFamily: "'Georgia', serif",
-  },
-  loginCard: {
-    maxWidth: "460px", width: "100%",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid #1e1e2e", borderRadius: "8px",
-    padding: "48px 40px", textAlign: "center",
-  },
-  badge: {
-    display: "inline-block", fontSize: "10px", letterSpacing: "3px",
-    textTransform: "uppercase", color: "#c8a96e",
-    border: "1px solid rgba(200,169,110,0.3)", padding: "4px 12px",
-    borderRadius: "2px", marginBottom: "24px",
-  },
-  loginTitle: {
-    fontSize: "clamp(22px,4vw,32px)", fontWeight: "normal",
-    color: "#f0e8d8", lineHeight: 1.3, marginBottom: "16px",
-    letterSpacing: "-0.5px",
-  },
+  loginWrap: { minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Georgia', serif" },
+  loginCard: { maxWidth: "460px", width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e", borderRadius: "8px", padding: "48px 40px", textAlign: "center" },
+  badge: { display: "inline-block", fontSize: "10px", letterSpacing: "3px", textTransform: "uppercase", color: "#c8a96e", border: "1px solid rgba(200,169,110,0.3)", padding: "4px 12px", borderRadius: "2px", marginBottom: "24px" },
+  loginTitle: { fontSize: "clamp(22px,4vw,32px)", fontWeight: "normal", color: "#f0e8d8", lineHeight: 1.3, marginBottom: "16px", letterSpacing: "-0.5px" },
   loginSub: { color: "#888", fontSize: "14px", lineHeight: 1.7, marginBottom: "28px" },
   beneficios: { textAlign: "left", marginBottom: "32px", background: "rgba(200,169,110,0.05)", borderRadius: "4px", padding: "16px 20px" },
   beneficioItem: { color: "#b0a890", fontSize: "13px", marginBottom: "8px" },
-  btnGoogle: {
-    width: "100%", padding: "14px", background: "#fff", color: "#222",
-    border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: "bold",
-    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'Georgia', serif", transition: "opacity 0.2s",
-  },
-  paywallWrap: {
-    minHeight: "100vh", background: "#0a0a0f",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "24px", fontFamily: "'Georgia', serif",
-  },
-  paywallCard: {
-    maxWidth: "440px", width: "100%", textAlign: "center",
-    background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e",
-    borderRadius: "8px", padding: "48px 36px",
-  },
-  planoCard: {
-    background: "rgba(200,169,110,0.06)", border: "1px solid rgba(200,169,110,0.2)",
-    borderRadius: "6px", padding: "24px", marginBottom: "20px", textAlign: "left",
-  },
-  btnPro: {
-    width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f",
-    border: "none", borderRadius: "4px", fontSize: "13px", letterSpacing: "2px",
-    textTransform: "uppercase", cursor: "pointer", fontWeight: "bold",
-    fontFamily: "'Georgia', serif", marginBottom: "10px",
-  },
-  topbar: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "16px 32px", borderBottom: "1px solid #1a1a2a",
-    background: "rgba(255,255,255,0.02)", fontFamily: "'Georgia', serif",
-  },
-  avatar: {
-    width: "30px", height: "30px", background: "#c8a96e", color: "#0a0a0f",
-    borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: "13px", fontWeight: "bold",
-  },
-  btnSair: {
-    background: "none", border: "none", color: "#555", fontSize: "12px",
-    cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif",
-  },
-  btnGerenciar: {
-    background: "none",
-    border: "1px solid #2a2a3a",
-    color: "#888",
-    fontSize: "11px",
-    padding: "4px 10px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontFamily: "'Georgia', serif",
-    letterSpacing: "1px",
-  },
-  label: {
-    display: "block", fontSize: "10px", letterSpacing: "2px",
-    textTransform: "uppercase", color: "#c8a96e", marginBottom: "8px",
-    fontFamily: "'Georgia', serif",
-  },
-  input: {
-    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid #2a2a3a",
-    borderRadius: "4px", padding: "13px 15px", color: "#e8e0d0", fontSize: "14px",
-    fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box",
-    transition: "border-color 0.2s",
-  },
-  btnPrimary: {
-    width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f",
-    border: "none", borderRadius: "4px", fontSize: "12px", letterSpacing: "2px",
-    textTransform: "uppercase", cursor: "pointer", fontWeight: "bold",
-    fontFamily: "'Georgia', serif", transition: "background 0.2s",
-  },
-  btnOutline: {
-    padding: "10px 18px", background: "transparent", color: "#888",
-    border: "1px solid #2a2a3a", borderRadius: "4px", fontSize: "11px",
-    letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer",
-    fontFamily: "'Georgia', serif",
-  },
-  loadingWrap: {
-    display: "flex", flexDirection: "column", alignItems: "center",
-    justifyContent: "center", minHeight: "400px", gap: "20px", textAlign: "center",
-    fontFamily: "'Georgia', serif",
-  },
-  spinner: {
-    width: "44px", height: "44px", border: "2px solid #1e1e2e",
-    borderTop: "2px solid #c8a96e", borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  propostaBox: {
-    background: "rgba(255,255,255,0.03)", border: "1px solid #2a2a3a",
-    borderRadius: "6px", padding: "36px",
-    lineHeight: 1.8, fontSize: "14px", color: "#d8d0c0",
-    fontFamily: "'Georgia', serif",
-  },
-  dica: {
-    marginTop: "20px", padding: "14px 18px",
-    background: "rgba(200,169,110,0.07)", border: "1px solid rgba(200,169,110,0.15)",
-    borderRadius: "4px", fontSize: "13px", color: "#c8a96e",
-    fontFamily: "'Georgia', serif",
-  },
+  btnGoogle: { width: "100%", padding: "14px", background: "#fff", color: "#222", border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif" },
+  paywallWrap: { minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Georgia', serif" },
+  paywallCard: { maxWidth: "440px", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e", borderRadius: "8px", padding: "48px 36px" },
+  planoCard: { background: "rgba(200,169,110,0.06)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: "6px", padding: "24px", marginBottom: "20px", textAlign: "left" },
+  btnPro: { width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f", border: "none", borderRadius: "4px", fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontWeight: "bold", fontFamily: "'Georgia', serif", marginBottom: "10px" },
+  topbar: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 32px", borderBottom: "1px solid #1a1a2a", background: "rgba(255,255,255,0.02)", fontFamily: "'Georgia', serif" },
+  avatar: { width: "30px", height: "30px", background: "#c8a96e", color: "#0a0a0f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "bold" },
+  btnSair: { background: "none", border: "none", color: "#555", fontSize: "12px", cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif" },
+  btnGerenciar: { background: "none", border: "1px solid #2a2a3a", color: "#888", fontSize: "11px", padding: "4px 10px", borderRadius: "4px", cursor: "pointer", fontFamily: "'Georgia', serif", letterSpacing: "1px" },
+  label: { display: "block", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", color: "#c8a96e", marginBottom: "8px", fontFamily: "'Georgia', serif" },
+  input: { width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid #2a2a3a", borderRadius: "4px", padding: "13px 15px", color: "#e8e0d0", fontSize: "14px", fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box" },
+  btnPrimary: { width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f", border: "none", borderRadius: "4px", fontSize: "12px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontWeight: "bold", fontFamily: "'Georgia', serif" },
+  btnOutline: { padding: "10px 18px", background: "transparent", color: "#888", border: "1px solid #2a2a3a", borderRadius: "4px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif" },
+  loadingWrap: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", gap: "20px", textAlign: "center", fontFamily: "'Georgia', serif" },
+  spinner: { width: "44px", height: "44px", border: "2px solid #1e1e2e", borderTop: "2px solid #c8a96e", borderRadius: "50%", animation: "spin 1s linear infinite" },
+  propostaBox: { background: "rgba(255,255,255,0.03)", border: "1px solid #2a2a3a", borderRadius: "6px", padding: "36px", lineHeight: 1.8, fontSize: "14px", color: "#d8d0c0", fontFamily: "'Georgia', serif" },
+  dica: { marginTop: "20px", padding: "14px 18px", background: "rgba(200,169,110,0.07)", border: "1px solid rgba(200,169,110,0.15)", borderRadius: "4px", fontSize: "13px", color: "#c8a96e", fontFamily: "'Georgia', serif" },
 };
 
-// inject keyframes
 if (typeof document !== "undefined") {
   const s = document.createElement("style");
   s.textContent = `
