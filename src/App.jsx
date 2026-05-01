@@ -53,12 +53,16 @@ const useAuth = () => {
   const loginGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      if (isMobile()) await signInWithRedirect(auth, provider);
-      else {
-        const result = await signInWithPopup(auth, provider);
-        if (result?.user) setUser({ name: result.user.displayName || result.user.email, email: result.user.email });
+      const result = await signInWithPopup(auth, provider);
+      if (result?.user) setUser({ name: result.user.displayName || result.user.email, email: result.user.email });
+    } catch (e) {
+      // Fallback para redirect se popup for bloqueado
+      if (e.code === "auth/popup-blocked" || e.code === "auth/popup-closed-by-user") {
+        await signInWithRedirect(auth, provider);
+      } else {
+        console.error(e);
       }
-    } catch (e) { console.error(e); }
+    }
   };
 
   return { user, loadingAuth, loginGoogle, logout: () => signOut(auth) };
