@@ -4,7 +4,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
   getRedirectResult, onAuthStateChanged, signOut,
 } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 const CONFIG = {
   FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
@@ -327,6 +327,11 @@ function TelaApp({ user, usage, onLogout }) {
   const [error, setError] = useState("");
   const [copyMsg, setCopyMsg] = useState("");
   const [layoutIdx, setLayoutIdx] = useState(0);
+  const [avaliacao, setAvaliacao] = useState(0);
+  const [avaliacaoHover, setAvaliacaoHover] = useState(0);
+  const [comentario, setComentario] = useState("");
+  const [avaliacaoEnviada, setAvaliacaoEnviada] = useState(false);
+  const [avaliacaoAberta, setAvaliacaoAberta] = useState(false);
   const layout = LAYOUTS[layoutIdx];
   const hoje = new Date().toLocaleDateString("pt-BR");
 
@@ -416,6 +421,23 @@ ${f.diferenciais ? "9" : "8"}. ASSINATURA`;
     setCopyMsg(ok ? "✓ Copiado com formatação!" : "✓ Copiado (texto simples)");
     setTimeout(()=>setCopyMsg(""), 2500);
   };
+
+  const enviarAvaliacao = async () => {
+    if (!avaliacao) return;
+    try {
+      await addDoc(collection(db, "avaliacoes"), {
+        email: user.email,
+        nome: user.name,
+        estrelas: avaliacao,
+        comentario: comentario.trim(),
+        plano: usage.subscribed ? "pro" : "gratuito",
+        criadoEm: serverTimestamp(),
+      });
+      setAvaliacaoEnviada(true);
+    } catch (e) { console.error(e); }
+  };
+
+  const LABELS_ESTRELAS = ["", "Péssimo", "Ruim", "Médio", "Bom", "Excelente"];
 
   if (usage.loadingSubscription) return (
     <div style={{minHeight:"100vh",background:"#0a0a0f",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -547,6 +569,79 @@ ${f.diferenciais ? "9" : "8"}. ASSINATURA`;
             </div>
 
             <div style={S.dica}>💡 Use 🎨 para trocar o layout · "Copiar para Word" preserva a formatação · PRO remove marca d'água do PDF.</div>
+
+            {/* ---- AVALIAÇÃO ---- */}
+            {!avaliacaoEnviada ? (
+              <div style={{marginTop:"24px",background:"rgba(255,255,255,0.02)",border:"1px solid #1e1e2e",borderRadius:"8px",padding:"24px 28px"}}>
+                {!avaliacaoAberta ? (
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"12px"}}>
+                    <span style={{fontSize:"14px",color:"#888",fontFamily:"Georgia,serif"}}>Como foi sua experiência com a proposta gerada?</span>
+                    <button onClick={()=>setAvaliacaoAberta(true)} style={{background:"none",border:"1px solid #2a2a3a",color:"#c8a96e",borderRadius:"4px",padding:"8px 16px",cursor:"pointer",fontSize:"12px",letterSpacing:"1px",fontFamily:"Georgia,serif"}}>
+                      Avaliar ★
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{fontSize:"13px",color:"#888",fontFamily:"Georgia,serif",marginBottom:"16px"}}>Como foi sua experiência?</p>
+                    {/* Estrelas */}
+                    <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                      {[1,2,3,4,5].map(n => (
+                        <span
+                          key={n}
+                          onClick={()=>setAvaliacao(n)}
+                          onMouseEnter={()=>setAvaliacaoHover(n)}
+                          onMouseLeave={()=>setAvaliacaoHover(0)}
+                          style={{fontSize:"32px",cursor:"pointer",transition:"transform 0.1s",transform:(avaliacaoHover||avaliacao)>=n?"scale(1.2)":"scale(1)",userSelect:"none"}}
+                        >
+                          {(avaliacaoHover||avaliacao) >= n ? "★" : "☆"}
+                        </span>
+                      ))}
+                    </div>
+                    {/* Label da estrela */}
+                    {(avaliacaoHover || avaliacao) > 0 && (
+                      <p style={{fontSize:"12px",color:"#c8a96e",fontFamily:"Georgia,serif",marginBottom:"16px",letterSpacing:"1px"}}>
+                        {LABELS_ESTRELAS[avaliacaoHover || avaliacao]}
+                      </p>
+                    )}
+                    {/* Comentário */}
+                    {avaliacao > 0 && (
+                      <div style={{marginBottom:"16px"}}>
+                        <textarea
+                          value={comentario}
+                          onChange={e=>setComentario(e.target.value)}
+                          placeholder="Deixe um comentário (opcional)..."
+                          rows={3}
+                          style={{...S.input,resize:"vertical",minHeight:"80px",marginTop:"8px"}}
+                        />
+                      </div>
+                    )}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"12px"}}>
+                      <button
+                        onClick={enviarAvaliacao}
+                        disabled={!avaliacao}
+                        style={{...S.btnPrimary,width:"auto",padding:"10px 24px",fontSize:"12px",opacity:avaliacao?1:0.4,cursor:avaliacao?"pointer":"not-allowed"}}
+                      >
+                        Enviar avaliação
+                      </button>
+                      <a
+                        href="mailto:paulocesar2582@gmail.com?subject=Sugestão PropostaAI"
+                        style={{fontSize:"12px",color:"#555",fontFamily:"Georgia,serif",textDecoration:"none",borderBottom:"1px solid #333"}}
+                      >
+                        Tem sugestões? Envie um e-mail →
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{marginTop:"24px",background:"rgba(200,169,110,0.06)",border:"1px solid rgba(200,169,110,0.2)",borderRadius:"8px",padding:"20px 28px",display:"flex",alignItems:"center",gap:"12px"}}>
+                <span style={{fontSize:"24px"}}>🙏</span>
+                <div>
+                  <p style={{fontSize:"14px",color:"#c8a96e",fontFamily:"Georgia,serif",marginBottom:"4px"}}>Obrigado pela avaliação!</p>
+                  <p style={{fontSize:"12px",color:"#555",fontFamily:"Georgia,serif"}}>Seu feedback nos ajuda a melhorar cada vez mais.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
