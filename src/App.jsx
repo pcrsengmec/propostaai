@@ -136,6 +136,9 @@ function markdownToHtml(text, themeId) {
     .replace(/\*\*(.+?)\*\*/g, `<strong style="color:${c.bold}">$1</strong>`)
     .replace(/\*(.+?)\*/g, `<em>$1</em>`);
 
+  // Strip leading #### from a string (when IA mixes bullet + heading)
+  const stripHashes = (s) => s.replace(/^#{1,4}\s*/, "");
+
   const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
   let html = "";
   let tbl = [];
@@ -143,13 +146,19 @@ function markdownToHtml(text, themeId) {
   const flushTable = () => {
     if (!tbl.length) return;
     const rows = tbl.filter(r => !/^\|[\s\-|]+\|$/.test(r.trim()));
-    html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif">`;
+    if (!rows.length) { tbl = []; return; }
+    // Calculate number of columns from first row
+    const firstCells = rows[0].split("|").slice(1,-1);
+    const numCols = firstCells.length;
+    html += `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-family:Georgia,serif;table-layout:fixed">`;
     rows.forEach((row, idx) => {
       const cells = row.split("|").slice(1,-1).map(c=>c.trim());
       if (!cells.length) return;
       const isH = idx === 0;
       const tag = isH ? "th" : "td";
-      html += `<tr>${cells.map(cell=>`<${tag} style="padding:9px 13px;border:1px solid ${c.tdb};color:${c.txt};font-size:13px;text-align:left;${isH?`background:${c.tdhBg};font-weight:bold`:""}">${inline(cell)}</${tag}>`).join("")}</tr>`;
+      html += `<tr>${cells.map(cell=>
+        `<${tag} style="padding:9px 13px;border:1px solid ${c.tdb};color:${c.txt};font-size:13px;text-align:left;word-wrap:break-word;white-space:normal;${isH?`background:${c.tdhBg};font-weight:bold`:""}">${inline(stripHashes(cell))}</${tag}>`
+      ).join("")}</tr>`;
     });
     html += `</table>`;
     tbl = [];
@@ -159,7 +168,10 @@ function markdownToHtml(text, themeId) {
     if (/^\s*\|/.test(line)) { tbl.push(line); continue; }
     else if (tbl.length) flushTable();
 
-    if (/^---+$/.test(line.trim())) {
+    // Clean line — strip leading hashes that appear mid-list (e.g. "- #### text")
+    const trimmed = line.trim();
+
+    if (/^---+$/.test(trimmed)) {
       html += `<hr style="border:none;border-top:1px solid ${c.hr};margin:28px 0"/>`;
     } else if (/^#{4} /.test(line)) {
       html += `<h4 style="font-size:13px;color:${c.h4};margin:14px 0 6px;font-weight:bold;font-family:Georgia,serif">${inline(line.slice(5))}</h4>`;
@@ -171,10 +183,12 @@ function markdownToHtml(text, themeId) {
       html += `<h1 style="font-size:18px;color:${c.h3};margin:0 0 20px;font-weight:normal;font-family:Georgia,serif">${inline(line.slice(2))}</h1>`;
     } else if (/^\d+\. /.test(line)) {
       const num = line.match(/^\d+/)[0];
-      html += `<div style="display:flex;gap:8px;margin:5px 0"><span style="color:${c.bullet};flex-shrink:0;min-width:18px;font-family:Georgia,serif">${num}.</span><span style="color:${c.txt};font-size:13px;line-height:1.7;font-family:Georgia,serif">${inline(line.replace(/^\d+\.\s*/,""))}</span></div>`;
+      const txt = stripHashes(line.replace(/^\d+\.\s*/,""));
+      html += `<div style="display:flex;gap:8px;margin:5px 0"><span style="color:${c.bullet};flex-shrink:0;min-width:18px;font-family:Georgia,serif">${num}.</span><span style="color:${c.txt};font-size:13px;line-height:1.7;font-family:Georgia,serif">${inline(txt)}</span></div>`;
     } else if (/^[-*] /.test(line)) {
-      html += `<div style="display:flex;gap:8px;margin:5px 0"><span style="color:${c.bullet};flex-shrink:0;font-family:Georgia,serif">✓</span><span style="color:${c.txt};font-size:13px;line-height:1.7;font-family:Georgia,serif">${inline(line.slice(2))}</span></div>`;
-    } else if (line.trim() === "") {
+      const txt = stripHashes(line.slice(2));
+      html += `<div style="display:flex;gap:8px;margin:5px 0"><span style="color:${c.bullet};flex-shrink:0;font-family:Georgia,serif">✓</span><span style="color:${c.txt};font-size:13px;line-height:1.7;font-family:Georgia,serif">${inline(txt)}</span></div>`;
+    } else if (trimmed === "") {
       html += `<div style="height:8px"></div>`;
     } else {
       html += `<p style="margin:5px 0;color:${c.txt};font-family:Georgia,serif;font-size:13px;line-height:1.8">${inline(line)}</p>`;
@@ -237,9 +251,9 @@ function exportarPDF(proposta, layoutId, isPro) {
     h4{font-size:13px;color:${t.accent};margin:12px 0 5px;font-weight:bold}
     p{font-size:13px;line-height:1.85;color:#333;margin:5px 0}
     hr{border:none;border-top:1px solid #eee;margin:20px 0}
-    table{width:100%;border-collapse:collapse;margin:14px 0}
-    th{padding:9px 12px;border:1px solid #ddd;font-size:12px;background:#f5f5f0;text-align:left;font-weight:bold}
-    td{padding:8px 12px;border:1px solid #ddd;font-size:12px}
+    table{width:100%;border-collapse:collapse;margin:14px 0;table-layout:fixed}
+    th{padding:9px 12px;border:1px solid #ddd;font-size:12px;background:#f5f5f0;text-align:left;font-weight:bold;word-wrap:break-word;white-space:normal}
+    td{padding:8px 12px;border:1px solid #ddd;font-size:12px;word-wrap:break-word;white-space:normal}
     strong{color:#111}
     ${!isPro?`.wm{position:fixed;bottom:16px;left:0;right:0;text-align:center;font-size:9px;color:#ccc;letter-spacing:2px;text-transform:uppercase}`:""}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:0}}
