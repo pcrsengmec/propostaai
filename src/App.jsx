@@ -1,56 +1,75 @@
 import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// ============================================================
-// CONFIGURAÇÃO — substitua com suas chaves reais
-// ============================================================
 const CONFIG = {
-  FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
-  FIREBASE_AUTH_DOMAIN: "propostaai.firebaseapp.com",
-  FIREBASE_PROJECT_ID: "propostaai",
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
   LIMITE_GRATUITO: 3,
   PRECO: "R$ 22/mês",
 };
-// ============================================================
 
-// ---- Simulação de Auth (para demonstração sem Firebase real) ----
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
+  authDomain: "propostaai.firebaseapp.com",
+  projectId: "propostaai",
+};
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
 const useAuth = () => {
   const [user, setUser] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          name: firebaseUser.displayName || "Usuário",
+          email: firebaseUser.email,
+          photo: firebaseUser.photoURL,
+        });
+      } else {
+        setUser(null);
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsub();
+  }, []);
 
   const loginGoogle = async () => {
-    setLoadingAuth(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setUser({ name: "Usuário Demo", email: "demo@email.com", photo: null });
-    setLoadingAuth(false);
+    try { await signInWithPopup(auth, provider); } catch (err) { console.error(err); }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => signOut(auth);
   return { user, loadingAuth, loginGoogle, logout };
 };
 
-// ---- Hook de uso/assinatura ----
 const useUsage = (user) => {
   const key = user ? `usage_${user.email}` : null;
-  const subKey = user ? `sub_${user.email}` : null;
-
-  const getCount = () => {
-    if (!key) return 0;
-    return parseInt(localStorage.getItem(key) || "0");
-  };
-
-  const getSubscribed = () => {
-    if (!subKey) return false;
-    return localStorage.getItem(subKey) === "true";
-  };
-
-  const [count, setCount] = useState(getCount);
-  const [subscribed, setSubscribed] = useState(getSubscribed);
+  const [count, setCount] = useState(0);
+  const [subscribed, setSubscribed] = useState(false);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
 
   useEffect(() => {
-    setCount(getCount());
-    setSubscribed(getSubscribed());
+    if (!user) { setCount(0); setSubscribed(false); return; }
+    setCount(parseInt(localStorage.getItem(key) || "0"));
+    const verificar = async () => {
+      setLoadingSubscription(true);
+      try {
+        const res = await fetch("/api/verificar-assinatura", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email }),
+        });
+        const data = await res.json();
+        setSubscribed(data.ativo === true);
+      } catch { setSubscribed(false); }
+      finally { setLoadingSubscription(false); }
+    };
+    verificar();
   }, [user]);
 
   const increment = () => {
@@ -59,51 +78,101 @@ const useUsage = (user) => {
     setCount(next);
   };
 
-  const ativarDemo = () => {
-    localStorage.setItem(subKey, "true");
-    setSubscribed(true);
-  };
-
   const remaining = subscribed ? Infinity : Math.max(0, CONFIG.LIMITE_GRATUITO - count);
   const canGenerate = subscribed || count < CONFIG.LIMITE_GRATUITO;
-
-  return { count, subscribed, remaining, canGenerate, increment, ativarDemo };
+  return { count, subscribed, remaining, canGenerate, increment, loadingSubscription };
 };
-
-// ---- Campos do formulário ----
 const fields = [
   { key: "seuNome", label: "Seu nome / empresa", placeholder: "Ex: João Silva Consultoria", required: true },
   { key: "clienteNome", label: "Nome do cliente", placeholder: "Ex: Empresa ABC Ltda", required: true },
   { key: "servico", label: "Serviço ou produto", placeholder: "Ex: Desenvolvimento de site institucional", required: true },
   { key: "valor", label: "Valor da proposta", placeholder: "Ex: R$ 5.000,00", required: true },
   { key: "prazo", label: "Prazo de entrega", placeholder: "Ex: 30 dias úteis", required: true },
-  { key: "diferenciais", label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso, garantia de satisfação...", required: false },
+  { key: "diferenciais", label: "Seus diferenciais (opcional)", placeholder: "Ex: 5 anos de experiência, suporte incluso...", required: false },
 ];
 
-// ---- Renderizador de Markdown para HTML ----
 function renderProposta(texto) {
-  const html = texto
-    .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #2a2a3a;margin:24px 0"/>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:15px;color:#c8a96e;letter-spacing:2px;text-transform:uppercase;margin:32px 0 10px;font-weight:normal;font-family:Georgia,serif">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;color:#f0e8d8;margin:20px 0 8px;font-weight:bold;font-family:Georgia,serif">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>')
-    .replace(/^✓ (.+)$/gm, '<div style="display:flex;gap:10px;margin:6px 0;color:#d8d0c0;font-family:Georgia,serif"><span style="color:#c8a96e;flex-shrink:0">✓</span><span>$1</span></div>')
-    .replace(/^\| (.+) \|$/gm, (match) => {
-      const cells = match.split('|').filter(c => c.trim() !== '');
-      const isHeader = cells.some(c => c.includes('---'));
-      if (isHeader) return '';
-      const tag = 'td';
-      return '<tr>' + cells.map(c => `<${tag} style="padding:8px 12px;border:1px solid #2a2a3a;color:#d8d0c0;font-size:13px">${c.trim()}</${tag}>`).join('') + '</tr>';
-    })
-    .replace(/(<tr>.*<\/tr>)/gs, '<table style="width:100%;border-collapse:collapse;margin:16px 0">$1</table>')
-    .replace(/\n/g, '<br/>');
-  return { __html: html };
+  const lines = texto.split('\n');
+  const result = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim().startsWith('```')) {
+      i++;
+      const codeLines = [];
+      while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
+      i++;
+      const items = codeLines.filter(l => l.trim()).map(l => {
+        const clean = l.replace(/^[│├└─\s]+/, '').trim();
+        if (!clean) return '';
+        const isChild = l.match(/^[│\s]*[├└]/) || (l.match(/^\s+/) || [''])[0].length >= 4;
+        return isChild
+          ? `<div style="display:flex;gap:8px;margin:4px 0 4px 20px;color:#b0a890;font-size:13px"><span style="color:#2a2a3a">—</span><span>${clean}</span></div>`
+          : `<div style="display:flex;gap:8px;margin:8px 0 4px;color:#c8a96e;font-size:13px;font-weight:bold"><span>▸</span><span>${clean}</span></div>`;
+      }).join('');
+      result.push(`<div style="background:rgba(200,169,110,0.04);border:1px solid #1e1e2e;border-radius:4px;padding:16px 20px;margin:12px 0">${items}</div>`);
+      continue;
+    }
+    if (line.trim().startsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) { tableLines.push(lines[i]); i++; }
+      let tHtml = '<table style="width:100%;border-collapse:collapse;margin:16px 0">';
+      let first = true;
+      for (const tl of tableLines) {
+        const cells = tl.split('|').filter(c => c.trim());
+        if (cells.every(c => c.trim().match(/^[-:]+$/))) { first = false; continue; }
+        const tag = first ? 'th' : 'td';
+        const st = first
+          ? 'padding:10px 12px;border:1px solid #2a2a3a;background:rgba(200,169,110,0.08);color:#c8a96e;font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:normal'
+          : 'padding:9px 12px;border:1px solid #1e1e2e;color:#d8d0c0;font-size:13px';
+        tHtml += '<tr>' + cells.map(c => `<${tag} style="${st}">${c.trim().replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>')}</${tag}>`).join('') + '</tr>';
+        if (first) first = false;
+      }
+      result.push(tHtml + '</table>');
+      continue;
+    }
+    if (line.match(/^\d+\.\s+/)) {
+      const items = [];
+      while (i < lines.length && lines[i].match(/^\d+\.\s+/)) {
+        let content = lines[i].replace(/^\d+\.\s+/, '').replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>');
+        items.push(content);
+        i++;
+        while (i < lines.length && lines[i].match(/^\s{3,}-\s+/)) {
+          items[items.length-1] += `<div style="display:flex;gap:8px;margin:4px 0 2px 16px;color:#888;font-size:13px"><span>–</span><span>${lines[i].replace(/^\s+-\s+/,'')}</span></div>`;
+          i++;
+        }
+      }
+      result.push('<div>' + items.map((it, idx) =>
+        `<div style="display:flex;gap:12px;margin:10px 0;color:#d8d0c0;font-size:14px"><span style="color:#c8a96e;flex-shrink:0;font-size:12px;margin-top:2px">${idx+1}.</span><div>${it}</div></div>`
+      ).join('') + '</div>');
+      continue;
+    }
+    if (line.match(/^[-*]\s+/) && !line.match(/^---/)) {
+      const items = [];
+      while (i < lines.length && lines[i].match(/^[-*]\s+/)) {
+        items.push(lines[i].replace(/^[-*]\s+/, '').replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>'));
+        i++;
+      }
+      result.push('<div>' + items.map(it =>
+        `<div style="display:flex;gap:10px;margin:6px 0;color:#d8d0c0;font-size:14px"><span style="color:#c8a96e;flex-shrink:0">•</span><span>${it}</span></div>`
+      ).join('') + '</div>');
+      continue;
+    }
+    if (line.match(/^[-*]?\s*✓\s+/)) {
+      const content = line.replace(/^[-*]?\s*✓\s+/, '').replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0e8d8">$1</strong>');
+      result.push(`<div style="display:flex;gap:10px;margin:6px 0;color:#d8d0c0;font-size:14px"><span style="color:#c8a96e;flex-shrink:0">✓</span><span>${content}</span></div>`);
+      i++; continue;
+    }
+    if (line.trim() === '---') { result.push('<hr style="border:none;border-top:1px solid #1e1e2e;margin:28px 0"/>'); i++; continue; }
+    if (line.match(/^## /)) { result.push(`<h2 style="font-size:11px;color:#c8a96e;letter-spacing:3px;text-transform:uppercase;margin:36px 0 12px;font-weight:normal;font-family:Georgia,serif">${line.replace(/^## /,'').replace(/^[\p{Emoji}\s]+/u,'')}</h2>`); i++; continue; }
+    if (line.match(/^### /)) { result.push(`<h3 style="font-size:13px;color:#e8e0d0;margin:20px 0 8px;font-weight:bold;font-family:Georgia,serif">${line.replace(/^### /,'').replace(/^[\p{Emoji}\s]+/u,'')}</h3>`); i++; continue; }
+    if (line.match(/^#### /)) { result.push(`<h4 style="font-size:12px;color:#c8a96e;margin:16px 0 6px;font-weight:normal;font-family:Georgia,serif;letter-spacing:1px">${line.replace(/^#### /,'').replace(/^[\p{Emoji}\s]+/u,'')}</h4>`); i++; continue; }
+    if (line.trim() === '') { result.push('<div style="height:8px"></div>'); i++; continue; }
+    result.push(`<p style="margin:4px 0;color:#d8d0c0;font-size:14px;line-height:1.8;font-family:Georgia,serif">${line.replace(/\*\*(.+?)\*\*/g,'<strong style="color:#f0e8d8">$1</strong>').replace(/\*(.+?)\*/g,'<em style="color:#c8a96e">$1</em>')}</p>`);
+    i++;
+  }
+  return { __html: result.join('') };
 }
-
-// ================================================================
-//  TELAS
-// ================================================================
-
 function TelaLogin({ onLogin, loading }) {
   return (
     <div style={css.loginWrap}>
@@ -117,17 +186,13 @@ function TelaLogin({ onLogin, loading }) {
           IA cria propostas persuasivas para você fechar mais negócios.
           Comece grátis — {CONFIG.LIMITE_GRATUITO} propostas sem cartão.
         </p>
-
         <div style={css.beneficios}>
           {["✦ Proposta completa em &lt;30 segundos", "✦ Tom profissional e persuasivo", "✦ 3 propostas grátis para testar"].map((b, i) => (
             <div key={i} style={css.beneficioItem} dangerouslySetInnerHTML={{ __html: b }} />
           ))}
         </div>
-
         <button onClick={onLogin} disabled={loading} style={css.btnGoogle}>
-          {loading ? (
-            <span>Entrando...</span>
-          ) : (
+          {loading ? <span>Entrando...</span> : (
             <>
               <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: 10 }}>
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
@@ -147,7 +212,7 @@ function TelaLogin({ onLogin, loading }) {
   );
 }
 
-function TelaPaywall({ user, onAssinar }) {
+function TelaPaywall({ onAssinar }) {
   return (
     <div style={css.paywallWrap}>
       <div style={css.paywallCard}>
@@ -157,18 +222,15 @@ function TelaPaywall({ user, onAssinar }) {
           Você usou suas <em style={{ color: "#c8a96e" }}>3 propostas grátis</em>
         </h2>
         <p style={{ color: "#888", fontSize: "14px", marginBottom: "32px", lineHeight: 1.7 }}>
-          Assine o plano Pro e gere propostas ilimitadas, com histórico e templates exclusivos.
+          Assine o plano Pro e gere propostas ilimitadas.
         </p>
-
         <div style={css.planoCard}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <div>
               <div style={{ fontSize: "13px", color: "#c8a96e", letterSpacing: "2px", textTransform: "uppercase" }}>Plano Pro</div>
               <div style={{ fontSize: "32px", fontWeight: "bold", color: "#f0e8d8" }}>{CONFIG.PRECO}</div>
             </div>
-            <div style={{ fontSize: "11px", color: "#888", textAlign: "right" }}>
-              Cancele<br />quando quiser
-            </div>
+            <div style={{ fontSize: "11px", color: "#888", textAlign: "right" }}>Cancele<br />quando quiser</div>
           </div>
           {["Propostas ilimitadas", "Todos os templates", "Histórico completo", "Suporte prioritário"].map((f, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", color: "#d8d0c0", fontSize: "14px" }}>
@@ -176,11 +238,7 @@ function TelaPaywall({ user, onAssinar }) {
             </div>
           ))}
         </div>
-
-        <button onClick={onAssinar} style={css.btnPro}>
-          Assinar por {CONFIG.PRECO} →
-        </button>
-
+        <button onClick={onAssinar} style={css.btnPro}>Assinar por {CONFIG.PRECO} →</button>
         <p style={{ color: "#333", fontSize: "11px", marginTop: "16px", textAlign: "center" }}>
           Pagamento seguro via Stripe · Cancele a qualquer momento
         </p>
@@ -188,10 +246,9 @@ function TelaPaywall({ user, onAssinar }) {
     </div>
   );
 }
-
 function TelaApp({ user, usage, onLogout }) {
   const [form, setForm] = useState({});
-  const [step, setStep] = useState("dados"); // dados | gerando | proposta
+  const [step, setStep] = useState("dados");
   const [proposta, setProposta] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -238,200 +295,66 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const exportarPDF = () => {
-    const win = window.open("", "_blank");
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Proposta Comercial</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-            font-family: Georgia, serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 60px 60px;
-            color: #1a1a1a;
-            line-height: 1.8;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 48px;
-            padding-bottom: 24px;
-            border-bottom: 2px solid #c8a96e;
-          }
-          .logo {
-            font-size: 11px;
-            letter-spacing: 4px;
-            color: #c8a96e;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-          }
-          .titulo {
-            font-size: 22px;
-            font-weight: normal;
-            color: #1a1a1a;
-            letter-spacing: -0.5px;
-          }
-          h2 {
-            font-size: 13px;
-            color: #c8a96e;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin: 32px 0 10px;
-            font-weight: normal;
-          }
-          h3 {
-            font-size: 14px;
-            color: #1a1a1a;
-            margin: 20px 0 8px;
-            font-weight: bold;
-          }
-          hr {
-            border: none;
-            border-top: 1px solid #ddd;
-            margin: 24px 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-          }
-          td {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            font-size: 13px;
-          }
-          .proposta {
-            font-size: 14px;
-            line-height: 1.9;
-            color: #222;
-          }
-          .footer {
-            margin-top: 60px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-          }
-          @media print {
-            body { padding: 40px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="logo">PropostaAI</div>
-          <div class="titulo">Proposta Comercial</div>
+  if (usage.loadingSubscription) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", fontFamily: "Georgia, serif" }}>
+          <div style={css.spinner} />
+          <div style={{ color: "#555", fontSize: "13px", marginTop: "16px" }}>Verificando sua conta...</div>
         </div>
-        <div class="proposta">${proposta
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/^---$/gm, '<hr/>')
-          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-          .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\n/g, '<br/>')
-        }</div>
-        <div class="footer">Gerado por PropostaAI · fecharproposta.com.br</div>
-        <script>window.onload = function() { window.print(); };<\/script>
-      </body>
-      </html>
-    `);
-    win.document.close();
-  };
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f" }}>
-      {/* Topbar */}
       <div style={css.topbar}>
-        <div>
-          <span style={{ fontSize: "11px", letterSpacing: "3px", color: "#c8a96e", textTransform: "uppercase" }}>PropostaAI</span>
-        </div>
+        <span style={{ fontSize: "11px", letterSpacing: "3px", color: "#c8a96e", textTransform: "uppercase" }}>PropostaAI</span>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {!usage.subscribed && (
             <div style={{ fontSize: "12px", color: "#888" }}>
-              <span style={{ color: usage.remaining <= 1 ? "#e05555" : "#c8a96e", fontWeight: "bold" }}>
-                {usage.remaining}
-              </span> proposta{usage.remaining !== 1 ? "s" : ""} restante{usage.remaining !== 1 ? "s" : ""}
+              <span style={{ color: usage.remaining <= 1 ? "#e05555" : "#c8a96e", fontWeight: "bold" }}>{usage.remaining}</span> restante{usage.remaining !== 1 ? "s" : ""}
             </div>
           )}
-
           {usage.subscribed && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div style={{ fontSize: "11px", color: "#c8a96e", letterSpacing: "1px" }}>✓ PRO</div>
-              <button
-                onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")}
-                style={css.btnGerenciar}
-              >
-                Gerenciar assinatura
-              </button>
+              <div style={{ fontSize: "11px", color: "#c8a96e", background: "rgba(200,169,110,0.1)", padding: "4px 10px", borderRadius: "3px", border: "1px solid rgba(200,169,110,0.3)" }}>✓ PRO ATIVO</div>
+              <button onClick={() => window.open(CONFIG.STRIPE_PORTAL_LINK, "_blank")} style={css.btnGerenciar}>Gerenciar assinatura</button>
             </div>
           )}
-
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={css.avatar}>{user.name[0]}</div>
+            {user.photo
+              ? <img src={user.photo} alt="" style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #2a2a3a" }} />
+              : <div style={css.avatar}>{user.name[0]}</div>
+            }
+            <span style={{ fontSize: "12px", color: "#555", fontFamily: "Georgia,serif" }}>{user.name.split(' ')[0]}</span>
             <button onClick={onLogout} style={css.btnSair}>Sair</button>
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: "700px", margin: "0 auto", padding: "48px 24px" }}>
-
         {step === "dados" && (
           <div>
-            <h2 style={{ fontSize: "28px", fontWeight: "normal", color: "#f0e8d8", marginBottom: "8px", letterSpacing: "-0.5px" }}>
-              Nova proposta
-            </h2>
-            <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>
-              Preencha os dados e a IA cria uma proposta profissional para você.
-            </p>
-
+            <h2 style={{ fontSize: "28px", fontWeight: "normal", color: "#f0e8d8", marginBottom: "8px", letterSpacing: "-0.5px" }}>Nova proposta</h2>
+            <p style={{ color: "#666", fontSize: "14px", marginBottom: "36px" }}>Preencha os dados e a IA cria uma proposta profissional para você.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
               {fields.map((f) => (
                 <div key={f.key}>
-                  <label style={css.label}>
-                    {f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}
-                  </label>
-                  {f.key === "diferenciais" ? (
-                    <textarea
-                      value={form[f.key] || ""}
-                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      rows={3}
-                      style={{ ...css.input, resize: "vertical", minHeight: "80px" }}
-                    />
-                  ) : (
-                    <input
-                      value={form[f.key] || ""}
-                      onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      style={css.input}
-                      onFocus={(e) => (e.target.style.borderColor = "#c8a96e")}
-                      onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")}
-                    />
-                  )}
+                  <label style={css.label}>{f.label} {f.required && <span style={{ color: "#e05555" }}>*</span>}</label>
+                  {f.key === "diferenciais"
+                    ? <textarea value={form[f.key] || ""} onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} rows={3} style={{ ...css.input, resize: "vertical", minHeight: "80px" }} />
+                    : <input value={form[f.key] || ""} onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={css.input} onFocus={(e) => (e.target.style.borderColor = "#c8a96e")} onBlur={(e) => (e.target.style.borderColor = "#2a2a3a")} />
+                  }
                 </div>
               ))}
             </div>
-
             {error && <div style={{ marginTop: "12px", color: "#e05555", fontSize: "13px" }}>{error}</div>}
-            <button
-              onClick={gerar}
-              disabled={!isValid}
-              style={{ ...css.btnPrimary, marginTop: "32px", opacity: isValid ? 1 : 0.4, cursor: isValid ? "pointer" : "not-allowed" }}
-            >
+            <button onClick={gerar} disabled={!isValid} style={{ ...css.btnPrimary, marginTop: "32px", opacity: isValid ? 1 : 0.4, cursor: isValid ? "pointer" : "not-allowed" }}>
               Gerar Proposta com IA →
             </button>
           </div>
         )}
-
         {step === "gerando" && (
           <div style={css.loadingWrap}>
             <div style={css.spinner} />
@@ -439,7 +362,6 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
             <div style={{ fontSize: "13px", color: "#555" }}>A IA está elaborando um documento persuasivo</div>
           </div>
         )}
-
         {step === "proposta" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
@@ -448,189 +370,70 @@ A proposta deve ter as seguintes seções usando ## como título: IDENTIFICAÇÃ
                 <h2 style={{ fontSize: "24px", fontWeight: "normal", color: "#f0e8d8", margin: 0 }}>Sua proposta está pronta</h2>
               </div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>
-                  {copied ? "✓ Copiado!" : "Copiar"}
-                </button>
-                <button onClick={exportarPDF} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto", background: "#1a5c1a" }}>
-                  📄 Exportar PDF
-                </button>
-                <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>
-                  Nova
-                </button>
+                <button onClick={copiar} style={{ ...css.btnPrimary, padding: "10px 18px", fontSize: "11px", width: "auto" }}>{copied ? "✓ Copiado!" : "Copiar"}</button>
+                <button onClick={() => { setStep("dados"); setProposta(""); setForm({}); }} style={css.btnOutline}>Nova</button>
               </div>
             </div>
-
-            {/* Proposta renderizada com markdown */}
-            <div
-              style={css.propostaBox}
-              dangerouslySetInnerHTML={renderProposta(proposta)}
-            />
-
-            <div style={css.dica}>
-              💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.
-            </div>
+            <div style={css.propostaBox} dangerouslySetInnerHTML={renderProposta(proposta)} />
+            <div style={css.dica}>💡 Revise valores e personalize antes de enviar. Propostas revisadas convertem mais.</div>
           </div>
         )}
       </div>
     </div>
   );
-}
-
-// ================================================================
-//  APP PRINCIPAL
-// ================================================================
 export default function App() {
   const { user, loadingAuth, loginGoogle, logout } = useAuth();
   const usage = useUsage(user);
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
-    if (user && !usage.canGenerate) setShowPaywall(true);
+    if (user && !usage.loadingSubscription && !usage.canGenerate) setShowPaywall(true);
     else setShowPaywall(false);
-  }, [usage.canGenerate, user]);
+  }, [usage.canGenerate, usage.loadingSubscription, user]);
+
+  if (loadingAuth) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", fontFamily: "Georgia, serif" }}>
+          <div style={css.spinner} />
+          <div style={{ color: "#555", fontSize: "13px", marginTop: "16px" }}>Carregando...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return <TelaLogin onLogin={loginGoogle} loading={loadingAuth} />;
-
-  if (showPaywall)
-    return (
-      <TelaPaywall
-        user={user}
-        onAssinar={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")}
-      />
-    );
-
+  if (showPaywall) return <TelaPaywall onAssinar={() => window.open(CONFIG.STRIPE_PAYMENT_LINK, "_blank")} />;
   return <TelaApp user={user} usage={usage} onLogout={logout} />;
 }
 
-// ================================================================
-//  ESTILOS
-// ================================================================
 const css = {
-  loginWrap: {
-    minHeight: "100vh", background: "#0a0a0f",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "24px", fontFamily: "'Georgia', serif",
-  },
-  loginCard: {
-    maxWidth: "460px", width: "100%",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid #1e1e2e", borderRadius: "8px",
-    padding: "48px 40px", textAlign: "center",
-  },
-  badge: {
-    display: "inline-block", fontSize: "10px", letterSpacing: "3px",
-    textTransform: "uppercase", color: "#c8a96e",
-    border: "1px solid rgba(200,169,110,0.3)", padding: "4px 12px",
-    borderRadius: "2px", marginBottom: "24px",
-  },
-  loginTitle: {
-    fontSize: "clamp(22px,4vw,32px)", fontWeight: "normal",
-    color: "#f0e8d8", lineHeight: 1.3, marginBottom: "16px",
-    letterSpacing: "-0.5px",
-  },
+  loginWrap: { minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Georgia', serif" },
+  loginCard: { maxWidth: "460px", width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e", borderRadius: "8px", padding: "48px 40px", textAlign: "center" },
+  badge: { display: "inline-block", fontSize: "10px", letterSpacing: "3px", textTransform: "uppercase", color: "#c8a96e", border: "1px solid rgba(200,169,110,0.3)", padding: "4px 12px", borderRadius: "2px", marginBottom: "24px" },
+  loginTitle: { fontSize: "clamp(22px,4vw,32px)", fontWeight: "normal", color: "#f0e8d8", lineHeight: 1.3, marginBottom: "16px", letterSpacing: "-0.5px" },
   loginSub: { color: "#888", fontSize: "14px", lineHeight: 1.7, marginBottom: "28px" },
   beneficios: { textAlign: "left", marginBottom: "32px", background: "rgba(200,169,110,0.05)", borderRadius: "4px", padding: "16px 20px" },
   beneficioItem: { color: "#b0a890", fontSize: "13px", marginBottom: "8px" },
-  btnGoogle: {
-    width: "100%", padding: "14px", background: "#fff", color: "#222",
-    border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: "bold",
-    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'Georgia', serif", transition: "opacity 0.2s",
-  },
-  paywallWrap: {
-    minHeight: "100vh", background: "#0a0a0f",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "24px", fontFamily: "'Georgia', serif",
-  },
-  paywallCard: {
-    maxWidth: "440px", width: "100%", textAlign: "center",
-    background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e",
-    borderRadius: "8px", padding: "48px 36px",
-  },
-  planoCard: {
-    background: "rgba(200,169,110,0.06)", border: "1px solid rgba(200,169,110,0.2)",
-    borderRadius: "6px", padding: "24px", marginBottom: "20px", textAlign: "left",
-  },
-  btnPro: {
-    width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f",
-    border: "none", borderRadius: "4px", fontSize: "13px", letterSpacing: "2px",
-    textTransform: "uppercase", cursor: "pointer", fontWeight: "bold",
-    fontFamily: "'Georgia', serif", marginBottom: "10px",
-  },
-  topbar: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "16px 32px", borderBottom: "1px solid #1a1a2a",
-    background: "rgba(255,255,255,0.02)", fontFamily: "'Georgia', serif",
-  },
-  avatar: {
-    width: "30px", height: "30px", background: "#c8a96e", color: "#0a0a0f",
-    borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: "13px", fontWeight: "bold",
-  },
-  btnSair: {
-    background: "none", border: "none", color: "#555", fontSize: "12px",
-    cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif",
-  },
-  btnGerenciar: {
-    background: "none",
-    border: "1px solid #2a2a3a",
-    color: "#888",
-    fontSize: "11px",
-    padding: "4px 10px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontFamily: "'Georgia', serif",
-    letterSpacing: "1px",
-    transition: "border-color 0.2s, color 0.2s",
-  },
-  label: {
-    display: "block", fontSize: "10px", letterSpacing: "2px",
-    textTransform: "uppercase", color: "#c8a96e", marginBottom: "8px",
-    fontFamily: "'Georgia', serif",
-  },
-  input: {
-    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid #2a2a3a",
-    borderRadius: "4px", padding: "13px 15px", color: "#e8e0d0", fontSize: "14px",
-    fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box",
-    transition: "border-color 0.2s",
-  },
-  btnPrimary: {
-    width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f",
-    border: "none", borderRadius: "4px", fontSize: "12px", letterSpacing: "2px",
-    textTransform: "uppercase", cursor: "pointer", fontWeight: "bold",
-    fontFamily: "'Georgia', serif", transition: "background 0.2s",
-  },
-  btnOutline: {
-    padding: "10px 18px", background: "transparent", color: "#888",
-    border: "1px solid #2a2a3a", borderRadius: "4px", fontSize: "11px",
-    letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer",
-    fontFamily: "'Georgia', serif",
-  },
-  loadingWrap: {
-    display: "flex", flexDirection: "column", alignItems: "center",
-    justifyContent: "center", minHeight: "400px", gap: "20px", textAlign: "center",
-    fontFamily: "'Georgia', serif",
-  },
-  spinner: {
-    width: "44px", height: "44px", border: "2px solid #1e1e2e",
-    borderTop: "2px solid #c8a96e", borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  propostaBox: {
-    background: "rgba(255,255,255,0.03)", border: "1px solid #2a2a3a",
-    borderRadius: "6px", padding: "36px",
-    lineHeight: 1.8, fontSize: "14px", color: "#d8d0c0",
-    fontFamily: "'Georgia', serif",
-  },
-  dica: {
-    marginTop: "20px", padding: "14px 18px",
-    background: "rgba(200,169,110,0.07)", border: "1px solid rgba(200,169,110,0.15)",
-    borderRadius: "4px", fontSize: "13px", color: "#c8a96e",
-    fontFamily: "'Georgia', serif",
-  },
+  btnGoogle: { width: "100%", padding: "14px", background: "#fff", color: "#222", border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif" },
+  paywallWrap: { minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Georgia', serif" },
+  paywallCard: { maxWidth: "440px", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.03)", border: "1px solid #1e1e2e", borderRadius: "8px", padding: "48px 36px" },
+  planoCard: { background: "rgba(200,169,110,0.06)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: "6px", padding: "24px", marginBottom: "20px", textAlign: "left" },
+  btnPro: { width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f", border: "none", borderRadius: "4px", fontSize: "13px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontWeight: "bold", fontFamily: "'Georgia', serif", marginBottom: "10px" },
+  topbar: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 32px", borderBottom: "1px solid #1a1a2a", background: "rgba(255,255,255,0.02)", fontFamily: "'Georgia', serif" },
+  avatar: { width: "30px", height: "30px", background: "#c8a96e", color: "#0a0a0f", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "bold" },
+  btnSair: { background: "none", border: "none", color: "#555", fontSize: "12px", cursor: "pointer", letterSpacing: "1px", fontFamily: "'Georgia', serif" },
+  btnGerenciar: { background: "none", border: "1px solid #2a2a3a", color: "#888", fontSize: "11px", padding: "4px 10px", borderRadius: "4px", cursor: "pointer", fontFamily: "'Georgia', serif", letterSpacing: "1px" },
+  label: { display: "block", fontSize: "10px", letterSpacing: "2px", textTransform: "uppercase", color: "#c8a96e", marginBottom: "8px", fontFamily: "'Georgia', serif" },
+  input: { width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid #2a2a3a", borderRadius: "4px", padding: "13px 15px", color: "#e8e0d0", fontSize: "14px", fontFamily: "'Georgia', serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" },
+  btnPrimary: { width: "100%", padding: "16px", background: "#c8a96e", color: "#0a0a0f", border: "none", borderRadius: "4px", fontSize: "12px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontWeight: "bold", fontFamily: "'Georgia', serif" },
+  btnOutline: { padding: "10px 18px", background: "transparent", color: "#888", border: "1px solid #2a2a3a", borderRadius: "4px", fontSize: "11px", letterSpacing: "2px", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif" },
+  loadingWrap: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "400px", gap: "20px", textAlign: "center", fontFamily: "'Georgia', serif" },
+  spinner: { width: "44px", height: "44px", border: "2px solid #1e1e2e", borderTop: "2px solid #c8a96e", borderRadius: "50%", animation: "spin 1s linear infinite" },
+  propostaBox: { background: "rgba(255,255,255,0.03)", border: "1px solid #2a2a3a", borderRadius: "6px", padding: "36px", lineHeight: 1.8, fontSize: "14px", color: "#d8d0c0", fontFamily: "'Georgia', serif" },
+  dica: { marginTop: "20px", padding: "14px 18px", background: "rgba(200,169,110,0.07)", border: "1px solid rgba(200,169,110,0.15)", borderRadius: "4px", fontSize: "13px", color: "#c8a96e", fontFamily: "'Georgia', serif" },
 };
 
-// inject keyframes
 if (typeof document !== "undefined") {
   const s = document.createElement("style");
   s.textContent = `
@@ -642,7 +445,7 @@ if (typeof document !== "undefined") {
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
-    .btn-gerenciar:hover { border-color: #c8a96e !important; color: #c8a96e !important; }
   `;
   document.head.appendChild(s);
-}
+}  
+                                                                                    }
