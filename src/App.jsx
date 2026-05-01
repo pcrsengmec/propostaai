@@ -8,7 +8,7 @@ import { getFirestore, collection, query, where, getDocs } from "firebase/firest
 // ============================================================
 const CONFIG = {
   FIREBASE_API_KEY: "AIzaSyDnOuaD4TZ-iyhT5lw2JR_gd8ZYIJQK0Jg",
-  FIREBASE_AUTH_DOMAIN: "propostaai.firebaseapp.com",
+  FIREBASE_AUTH_DOMAIN: "fecharproposta.com.br",
   FIREBASE_PROJECT_ID: "propostaai",
   STRIPE_PAYMENT_LINK: "https://buy.stripe.com/aFa8wO0CqfdicZ96j7dby01",
   STRIPE_PORTAL_LINK: "https://billing.stripe.com/p/login/bJe7sKgBo4yEaR15f3dby00",
@@ -21,7 +21,7 @@ const CONFIG = {
 // ============================================================
 const firebaseConfig = {
   apiKey: CONFIG.FIREBASE_API_KEY,
-  authDomain: CONFIG.FIREBASE_AUTH_DOMAIN,
+  authDomain: "fecharproposta.com.br",
   projectId: CONFIG.FIREBASE_PROJECT_ID,
 };
 
@@ -37,7 +37,6 @@ const useAuth = () => {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    // Captura o resultado do redirect ao voltar do Google
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -51,7 +50,6 @@ const useAuth = () => {
       })
       .catch((e) => console.error("Redirect error:", e));
 
-    // Observa mudanças de auth
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
